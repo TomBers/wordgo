@@ -14,6 +14,12 @@ defmodule Wordgo.Application do
       {Phoenix.PubSub, name: Wordgo.PubSub},
       # Start a worker by calling: Wordgo.Worker.start_link(arg)
       # {Wordgo.Worker, arg},
+      # Start the embedding model server
+      {Nx.Serving,
+       serving: Wordgo.WordToVec.Embeddings.serving(),
+       name: Wordgo.Embeddings,
+       batch_size: 8,
+       batch_timeout: 100},
       # Start to serve requests, typically the last entry
       WordgoWeb.Endpoint
     ]

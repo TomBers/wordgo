@@ -7,6 +7,8 @@
 # General application configuration
 import Config
 
+config :nx, :default_backend, EXLA.Backend
+
 config :wordgo,
   ecto_repos: [Wordgo.Repo],
   generators: [timestamp_type: :utc_datetime]

@@ -16,11 +16,10 @@ defmodule Wordgo.WordToVec.GetScore do
   """
   def run(word1, word2) do
     # Get embeddings for both words
-    embedding1 = get_embedding(word1)
-    embedding2 = get_embedding(word2)
+    embeddings = get_embedding([word1, word2])
 
     # Calculate cosine similarity
-    similarity = cosine_similarity(embedding1, embedding2)
+    similarity = cosine_similarity(List.first(embeddings), List.last(embeddings))
 
     # Convert to float and return
     Nx.to_number(similarity)
@@ -31,16 +30,16 @@ defmodule Wordgo.WordToVec.GetScore do
   end
 
   @doc """
-  Gets the embedding vector for a given word.
+  Gets the embedding vector for a given words.
   """
-  def get_embedding(word) do
-    case Serving.batched_run(Wordgo.Embeddings, word) do
-      %{embedding: embedding} ->
-        embedding
+  def get_embedding(words) do
+    case Serving.batched_run(Wordgo.Embeddings, words) do
+      tensors ->
+        Enum.map(tensors, fn %{embedding: embedding} -> embedding end)
 
-      result ->
-        Logger.error("Unexpected embedding result: #{inspect(result)}")
-        raise "Failed to get embedding for word: #{word}"
+        # result ->
+        #   Logger.error("Unexpected embedding result: #{inspect(result)}")
+        #   raise "Failed to get embedding for word: #{words}"
     end
   end
 

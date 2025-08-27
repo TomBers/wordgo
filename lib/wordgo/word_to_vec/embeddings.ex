@@ -17,7 +17,7 @@ defmodule Wordgo.WordToVec.Embeddings do
     {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "BAAI/bge-small-en-v1.5"})
 
     Bumblebee.Text.TextEmbedding.text_embedding(model_info, tokenizer,
-      compile: [batch_size: 8, sequence_length: 128],
+      compile: [batch_size: 8, sequence_length: 8],
       defn_options: [compiler: EXLA],
       preallocate_params: true
     )

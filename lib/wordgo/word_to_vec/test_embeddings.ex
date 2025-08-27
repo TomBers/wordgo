@@ -48,8 +48,8 @@ defmodule Wordgo.WordToVec.TestEmbeddings do
   Returns the embedding vector for the given word.
   """
   def test_embedding(word) do
-    embedding = GetScore.get_embedding(word)
-    shape = Nx.shape(embedding)
+    embedding = GetScore.get_embedding([word])
+    shape = Nx.shape(List.first(embedding))
 
     IO.puts("Successfully generated embedding for '#{word}'")
     IO.puts("Embedding shape: #{inspect(shape)}")

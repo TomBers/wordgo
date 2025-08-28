@@ -1,0 +1,1 @@
+Model cache: /Users/tomberman/Library/Caches/bumblebee/huggingface/BAAI--bge-small-en-v15

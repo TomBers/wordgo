@@ -1,4 +1,5 @@
 defmodule Wordgo.Game.Board do
+  alias Wordgo.WordToVec.GetScore
   defstruct x_size: 9, y_size: 9, pieces: []
 
   def new(size \\ 9) do
@@ -95,7 +96,6 @@ defmodule Wordgo.Game.Board do
     # TODO: Calculate the word similarity of the group
     # See Wordgo.WordToVec.GetScore
     group_size = length(group)
-    group_score = group_size * group_size
-    group_score
+    group_size * GetScore.score_group(group |> Enum.map(& &1.word))
   end
 end

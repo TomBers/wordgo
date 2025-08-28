@@ -1,0 +1,140 @@
+<Layouts.app flash={@flash}>
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Word Game</h1>
+    
+<!-- Player info -->
+    <div class="bg-blue-100 p-4 rounded-lg shadow mb-6">
+      <h2 class="text-xl font-semibold mb-2">Player: {@current_player.name}</h2>
+      <p class="mb-1">Score: {Wordgo.Game.calculate_player_score(@board, @current_player)}</p>
+      <div class="text-xs text-gray-600 mb-2">
+        <p>(Based on semantic word connections)</p>
+        <p>Connected words with similar meanings score higher</p>
+        <p>Try to place words that relate to each other!</p>
+      </div>
+      <div class="mb-1">
+        <p class="font-medium">Words placed:</p>
+        <ul class="list-disc list-inside">
+          <%= for word <- Wordgo.Game.get_player_words(@board, @current_player) do %>
+            <li>{word}</li>
+          <% end %>
+        </ul>
+      </div>
+    </div>
+    
+<!-- Game board -->
+    <div class="mb-6">
+      <h2 class="text-xl font-semibold mb-4">Game Board</h2>
+      <div style={"display: grid; grid-template-columns: repeat(#{@board_size}, 1fr); gap: 4px;"}>
+        <%= for y <- 0..(@board_size-1) do %>
+          <%= for x <- 0..(@board_size-1) do %>
+            <% piece = Enum.find(@board.pieces, fn p -> p.x == x && p.y == y end) %>
+            <button
+              phx-click="select-position"
+              phx-value-x={x}
+              phx-value-y={y}
+              style={"width: 30px; height: 30px; text-align: center; background-color: #{if piece, do: "yellow", else: "white"}; #{if @selected_position == {x, y}, do: "border: 2px solid blue;", else: ""}"}
+            >
+              <%= if piece do %>
+                {String.slice(piece.word, 0, 1)}
+              <% else %>
+                -
+              <% end %>
+            </button>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+    
+<!-- Word placement form -->
+    <div class="bg-gray-100 p-4 rounded-lg shadow mb-6">
+      <h2 class="text-xl font-semibold mb-4">Place a Word</h2>
+      <p class="text-sm text-gray-700 mb-3">
+        Choose a position on the board and enter a word that relates to your previously placed words for higher scores.
+      </p>
+
+      <%= if @error_message do %>
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {@error_message}
+        </div>
+      <% end %>
+
+      <form phx-submit="place-word" id="word-form">
+        <div class="mb-4">
+          <label for="word" class="block mb-2">Word</label>
+          <input
+            type="text"
+            id="word"
+            name="word"
+            value={@current_word}
+            placeholder="Enter a word"
+            required
+            class="w-full p-2 border rounded"
+          />
+        </div>
+
+        <div>
+          <button
+            type="submit"
+            id="place-word-btn"
+            disabled={@selected_position == nil}
+            class="px-4 py-2 bg-blue-500 text-white rounded"
+          >
+            Place Word
+          </button>
+        </div>
+      </form>
+
+      <%= if @selected_position do %>
+        <p class="mt-2">
+          Selected position: {elem(@selected_position, 0)}, {elem(@selected_position, 1)}
+        </p>
+      <% else %>
+        <p class="mt-2">
+          Select a position on the board to place your word
+        </p>
+      <% end %>
+    </div>
+    
+<!-- Word list -->
+    <div class="bg-gray-100 p-4 rounded-lg shadow mb-6">
+      <h2 class="text-xl font-semibold mb-4">Placed Words</h2>
+      <p class="text-sm text-gray-700 mb-3">
+        Words that are semantically related (have similar meanings) will form connected groups that score higher.
+      </p>
+
+      <%= if @placed_words == [] do %>
+        <p>No words have been placed yet</p>
+      <% else %>
+        <table class="w-full">
+          <thead>
+            <tr>
+              <th class="text-left p-2">Position</th>
+              <th class="text-left p-2">Word</th>
+              <th class="text-left p-2">Player</th>
+            </tr>
+          </thead>
+          <tbody>
+            <%= for word <- @placed_words do %>
+              <tr>
+                <td class="p-2">{word.x}, {word.y}</td>
+                <td class="p-2">{word.word}</td>
+                <td class="p-2">{word.player_name}</td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+    </div>
+    
+<!-- Reset button -->
+    <div>
+      <button
+        phx-click="reset-game"
+        id="reset-game-btn"
+        class="px-4 py-2 bg-red-500 text-white rounded"
+      >
+        Reset Game
+      </button>
+    </div>
+  </div>
+</Layouts.app>

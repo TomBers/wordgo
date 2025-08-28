@@ -10,6 +10,27 @@ defmodule Wordgo.WordToVec.GetScore do
     run("Bob", "Bill")
   end
 
+  def score_group(group) do
+    # Get embeddings for each word in the group
+    embeddings = get_embedding(group)
+
+    # Calculate average embedding
+    avg_embedding = Nx.mean(Nx.stack(embeddings), axes: [0])
+
+    # # Calculate cosine similarity between average embedding and each word
+    similarities =
+      Enum.map(embeddings, fn embedding ->
+        cosine_similarity(avg_embedding, embedding)
+      end)
+
+    # # Return average similarity
+    # Convert scalar tensors to numbers first, then calculate mean
+    similarities
+    |> Enum.map(&Nx.to_number/1)
+    |> Enum.sum()
+    |> Kernel./(length(similarities))
+  end
+
   @doc """
   Calculates the semantic similarity between two words using embeddings.
   Returns a float value between 0 and 1, where higher values indicate greater similarity.

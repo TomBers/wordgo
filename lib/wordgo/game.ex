@@ -66,12 +66,7 @@ defmodule Wordgo.Game do
     # We don't modify the player struct since scoring is handled by Board.score
 
     # Create a record for the placed word
-    placed_word = %{
-      x: x,
-      y: y,
-      word: word,
-      player_name: player.name
-    }
+    placed_word = Piece.new(x, y, player.name, word)
 
     {player, [placed_word | placed_words]}
   end
@@ -86,12 +81,7 @@ defmodule Wordgo.Game do
 
   """
   def create_placed_word_record(x, y, word, player_name) do
-    %{
-      x: x,
-      y: y,
-      word: word,
-      player_name: player_name
-    }
+    Piece.new(x, y, player_name, word)
   end
 
   @doc """
@@ -127,5 +117,49 @@ defmodule Wordgo.Game do
       # Return 0 if player not found in score map
       nil -> 0
     end
+  end
+
+  @doc """
+  Gets all word groups for a player.
+  A group consists of connected pieces on the board.
+
+  ## Examples
+
+      iex> get_player_groups(board, "player1")
+      [
+        [%Piece{...}, %Piece{...}],  # First group
+        [%Piece{...}]                # Second group
+      ]
+  """
+  def get_player_groups(board, player) do
+    # Get all pieces for the player
+    player_pieces =
+      board.pieces
+      |> Enum.filter(fn piece -> piece.player == player end)
+
+    # Use Board.get_groups to find all connected groups
+    Board.get_groups(player_pieces)
+  end
+
+  @doc """
+  Gets all word groups with their scores for a specific player.
+  Returns a list of tuples containing {group, score}.
+
+  ## Examples
+
+      iex> get_player_groups_with_scores(board, "player1")
+      [
+        {[%Piece{...}, %Piece{...}], 10},  # First group with score
+        {[%Piece{...}], 5}                 # Second group with score
+      ]
+  """
+  def get_player_groups_with_scores(board, player) do
+    # Get all groups for the player
+    groups = get_player_groups(board, player)
+
+    # Calculate score for each group
+    Enum.map(groups, fn group ->
+      {group, Board.score_group(group)}
+    end)
   end
 end

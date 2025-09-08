@@ -3,7 +3,7 @@ defmodule WordgoWeb.GameLive do
   alias Wordgo.Game
 
   # Define the initial state for the game
-  @board_size 15
+  @board_size 6
 
   @impl true
   def mount(_params, _session, socket) do

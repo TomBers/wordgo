@@ -6,26 +6,16 @@
     <div class="bg-blue-100 p-4 rounded-lg shadow mb-6">
       <h2 class="text-xl font-semibold mb-2">Player: {@current_player.name}</h2>
       <p class="mb-1">
-        Score: {Wordgo.Game.calculate_player_score(@board, @current_player.name)}
+        Score: {Wordgo.Game.calculate_player_score(@board, @current_player.name) |> round_score()}
       </p>
       <div class="text-xs text-gray-600 mb-2">
         <p>(Based on semantic word connections)</p>
         <p>Connected words with similar meanings score higher</p>
         <p>Try to place words that relate to each other!</p>
       </div>
-      <div class="mb-3">
-        <p class="font-medium">Words placed:</p>
-        <ul class="list-disc list-inside">
-          <%= for word <- Wordgo.Game.get_player_words(@board, @current_player.name) do %>
-            <li>{word}</li>
-          <% end %>
-        </ul>
-      </div>
 
       <div class="mt-4">
         <p class="font-medium">Connected word groups:</p>
-        <p class="text-sm mb-1">Debug - Word Groups Length: {length(@word_groups)}</p>
-        <p class="text-sm mb-2">Debug - Group Scores Length: {length(@group_scores)}</p>
 
         <%= if @word_groups == [] do %>
           <p class="text-sm text-gray-600">No groups formed yet. Place more words!</p>
@@ -33,7 +23,7 @@
           <div class="mt-2 space-y-3">
             <%= for {{group, score}, index} <- Enum.with_index(@group_scores) do %>
               <div class="bg-white p-2 rounded-md shadow-sm">
-                <p class="font-semibold">Group #{index + 1} (Score: {score})</p>
+                <p class="font-semibold">Group #{index + 1} (Score: {round_score(score)})</p>
                 <div class="flex flex-wrap gap-1 mt-1">
                   <%= for piece <- group do %>
                     <span class="bg-blue-100 px-2 py-1 rounded text-sm">
@@ -183,33 +173,11 @@
       <% else %>
         <div class="flex flex-wrap md:flex-nowrap gap-6">
           <!-- Placed words table -->
-          <div class="w-full md:w-1/2">
-            <h3 class="text-lg font-medium mb-2">All Words</h3>
-            <table class="w-full">
-              <thead>
-                <tr>
-                  <th class="text-left p-2">Position</th>
-                  <th class="text-left p-2">Word</th>
-                  <th class="text-left p-2">Player</th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for word <- @placed_words do %>
-                  <tr>
-                    <td class="p-2">{word.x}, {word.y}</td>
-                    <td class="p-2">{word.word}</td>
-                    <td class="p-2">{word.player}</td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          </div>
-          
+
+
 <!-- Word groups visualization -->
           <div class="w-full md:w-1/2">
             <h3 class="text-lg font-medium mb-2">Connected Word Groups</h3>
-            <p class="text-sm mb-1">Debug - Word Groups Length: {length(@word_groups)}</p>
-            <p class="text-sm mb-2">Debug - Group Scores Length: {length(@group_scores)}</p>
 
             <%= if @word_groups == [] do %>
               <p class="text-sm text-gray-600">No connected groups yet.</p>
@@ -225,7 +193,7 @@
                     <div class="flex justify-between items-center mb-2">
                       <h4 class="font-medium">Group #{idx + 1}</h4>
                       <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
-                        Score: {score}
+                        Score: {round_score(score)}
                       </span>
                     </div>
                     <div class="flex flex-wrap gap-2">

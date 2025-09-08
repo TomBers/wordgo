@@ -178,4 +178,16 @@ defmodule WordgoWeb.GameLive do
   def handle_event("update-word", %{"word" => word}, socket) do
     {:noreply, assign(socket, :current_word, word)}
   end
+
+  defp round_score(score) when is_number(score) do
+    if score > 0 do
+      Float.round(score, 2)
+    else
+      0
+    end
+  end
+
+  defp round_score(score) do
+    score
+  end
 end

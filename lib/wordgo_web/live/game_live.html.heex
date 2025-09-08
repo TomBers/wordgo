@@ -1,175 +1,186 @@
 <Layouts.app flash={@flash}>
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-6">Word Game</h1>
-    
-<!-- Player info -->
-    <div class="bg-blue-100 p-4 rounded-lg shadow mb-6">
-      <h2 class="text-xl font-semibold mb-2">Player: {@current_player.name}</h2>
-      <p class="mb-1">
-        Score: {Wordgo.Game.calculate_player_score(@board, @current_player.name) |> round_score()}
-      </p>
-      <div class="text-xs text-gray-600 mb-2">
-        <p>(Based on semantic word connections)</p>
-        <p>Connected words with similar meanings score higher</p>
-        <p>Try to place words that relate to each other!</p>
+  <div class="container mx-auto px-4 py-2">
+    <h1 class="text-2xl font-bold mb-2">Word Game</h1>
+
+    <div class="flex flex-col md:flex-row md:space-x-4">
+      <!-- Left Column: Game Board and Word Placement -->
+      <div class="md:w-2/3">
+        <!-- Game board -->
+        <div class="mb-3">
+          <h2 class="text-lg font-semibold mb-1">Game Board</h2>
+
+          <div class="flex flex-col items-start">
+            <div class="mb-1 flex flex-wrap gap-1 items-center text-xs">
+              <span class="w-4 h-4 inline-block bg-yellow-300 rounded-sm"></span>
+              <span class="text-sm">Word piece</span>
+
+              <% colors = [
+                "bg-red-300",
+                "bg-green-300",
+                "bg-blue-300",
+                "bg-purple-300",
+                "bg-pink-300",
+                "bg-indigo-300",
+                "bg-teal-300",
+                "bg-orange-300"
+              ] %>
+              <%= for {group, idx} <- Enum.with_index(@word_groups) do %>
+                <% color = Enum.at(colors, rem(idx, length(colors))) %>
+                <span class={"w-4 h-4 inline-block #{color} rounded-sm ml-2"}></span>
+                <span class="text-sm">Group #{idx + 1}</span>
+              <% end %>
+            </div>
+
+            <div style={"display: grid; grid-template-columns: repeat(#{@board_size}, 1fr); gap: 4px;"}>
+              <%= for y <- 0..(@board_size-1) do %>
+                <%= for x <- 0..(@board_size-1) do %>
+                  <% piece = Enum.find(@board.pieces, fn p -> p.x == x && p.y == y end) %>
+
+                  <% # Find which group this piece belongs to and get its color %>
+                  <% bg_color =
+                    cond do
+                      @selected_position == {x, y} ->
+                        "bg-blue-300"
+
+                      piece ->
+                        # Look for the piece in any group
+                        found_group_index =
+                          Enum.find_index(@word_groups, fn group ->
+                            Enum.any?(group, fn p -> p.x == piece.x && p.y == piece.y end)
+                          end)
+
+                        if found_group_index do
+                          # Use the group's index to select a color
+                          Enum.at(colors, rem(found_group_index, length(colors)))
+                        else
+                          "bg-yellow-300"
+                        end
+
+                      true ->
+                        "bg-white"
+                    end %>
+
+                  <button
+                    phx-click="select-position"
+                    phx-value-x={x}
+                    phx-value-y={y}
+                    class={"w-10 h-10 flex items-center justify-center font-medium rounded #{bg_color} #{if @selected_position == {x, y}, do: "ring-2 ring-blue-500", else: ""}"}
+                  >
+                    <%= if piece do %>
+                      {String.slice(piece.word, 0, 1)}
+                    <% else %>
+                      <span class="text-gray-300">·</span>
+                    <% end %>
+                  </button>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+        
+<!-- Word placement form -->
+        <div class="bg-gray-100 p-2 rounded-lg shadow mb-3">
+          <h2 class="text-lg font-semibold mb-1">Place a Word</h2>
+          <p class="text-xs text-gray-700 mb-1">
+            Choose a position on the board and enter a word that relates to your previously placed words for higher scores.
+          </p>
+
+          <%= if @error_message do %>
+            <div class="bg-red-100 border border-red-400 text-red-700 px-2 py-1 rounded mb-2 text-sm">
+              {@error_message}
+            </div>
+          <% end %>
+
+          <form phx-submit="place-word" id="word-form">
+            <div class="mb-2">
+              <label for="word" class="block mb-1 text-sm">Word</label>
+              <input
+                type="text"
+                id="word"
+                name="word"
+                value={@current_word}
+                placeholder="Enter a word"
+                required
+                class="w-full p-1 border rounded text-sm"
+              />
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                id="place-word-btn"
+                disabled={@selected_position == nil}
+                class="px-4 py-2 bg-blue-500 text-white rounded"
+              >
+                Place Word
+              </button>
+            </div>
+          </form>
+
+          <%= if @selected_position do %>
+            <p class="mt-1 text-xs">
+              Selected position: {elem(@selected_position, 0)}, {elem(@selected_position, 1)}
+            </p>
+          <% else %>
+            <p class="mt-1 text-xs">
+              Select a position on the board to place your word
+            </p>
+          <% end %>
+        </div>
+        
+<!-- Reset button -->
+        <div>
+          <button
+            phx-click="reset-game"
+            id="reset-game-btn"
+            class="px-3 py-1 bg-red-500 text-white rounded text-sm"
+          >
+            Reset Game
+          </button>
+        </div>
       </div>
+      
+<!-- Right Column: Player Info and Instructions -->
+      <div class="md:w-1/3 mt-3 md:mt-0">
+        <!-- Player info -->
+        <div class="bg-blue-100 p-2 rounded-lg shadow mb-3">
+          <h2 class="text-lg font-semibold mb-1">Player: {@current_player.name}</h2>
+          <p class="mb-1">
+            Score: {Wordgo.Game.calculate_player_score(@board, @current_player.name)
+            |> round_score()}
+          </p>
+          <div class="text-xs text-gray-600 mb-2">
+            <p>(Based on semantic word connections)</p>
+            <p>Connected words with similar meanings score higher</p>
+            <p>Try to place words that relate to each other!</p>
+          </div>
 
-      <div class="mt-4">
-        <p class="font-medium">Connected word groups:</p>
+          <div class="mt-2">
+            <p class="font-medium text-sm">Connected word groups:</p>
 
-        <%= if @word_groups == [] do %>
-          <p class="text-sm text-gray-600">No groups formed yet. Place more words!</p>
-        <% else %>
-          <div class="mt-2 space-y-3">
-            <%= for {{group, score}, index} <- Enum.with_index(@group_scores) do %>
-              <div class="bg-white p-2 rounded-md shadow-sm">
-                <p class="font-semibold">Group #{index + 1} (Score: {round_score(score)})</p>
-                <div class="flex flex-wrap gap-1 mt-1">
-                  <%= for piece <- group do %>
-                    <span class="bg-blue-100 px-2 py-1 rounded text-sm">
-                      {piece.word} ({piece.x},{piece.y})
-                    </span>
-                  <% end %>
-                </div>
+            <%= if @word_groups == [] do %>
+              <p class="text-sm text-gray-600">No groups formed yet. Place more words!</p>
+            <% else %>
+              <div class="mt-1 space-y-2">
+                <%= for {{group, score}, index} <- Enum.with_index(@group_scores) do %>
+                  <div class="bg-white p-1 rounded-md shadow-sm">
+                    <p class="font-semibold text-xs">
+                      Group #{index + 1} (Score: {round_score(score)})
+                    </p>
+                    <div class="flex flex-wrap gap-1 mt-1">
+                      <%= for piece <- group do %>
+                        <span class="bg-blue-100 px-1 py-0.5 rounded text-xs">
+                          {piece.word} ({piece.x},{piece.y})
+                        </span>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
               </div>
             <% end %>
           </div>
-        <% end %>
-      </div>
-    </div>
-    
-<!-- Game board -->
-    <div class="mb-6">
-      <h2 class="text-xl font-semibold mb-4">Game Board</h2>
-
-      <div class="flex flex-col items-start">
-        <div class="mb-2 flex gap-2 items-center">
-          <span class="w-4 h-4 inline-block bg-yellow-300 rounded-sm"></span>
-          <span class="text-sm">Word piece</span>
-
-          <% colors = [
-            "bg-red-300",
-            "bg-green-300",
-            "bg-blue-300",
-            "bg-purple-300",
-            "bg-pink-300",
-            "bg-indigo-300",
-            "bg-teal-300",
-            "bg-orange-300"
-          ] %>
-          <%= for {group, idx} <- Enum.with_index(@word_groups) do %>
-            <% color = Enum.at(colors, rem(idx, length(colors))) %>
-            <span class={"w-4 h-4 inline-block #{color} rounded-sm ml-2"}></span>
-            <span class="text-sm">Group #{idx + 1}</span>
-          <% end %>
-        </div>
-
-        <div style={"display: grid; grid-template-columns: repeat(#{@board_size}, 1fr); gap: 4px;"}>
-          <%= for y <- 0..(@board_size-1) do %>
-            <%= for x <- 0..(@board_size-1) do %>
-              <% piece = Enum.find(@board.pieces, fn p -> p.x == x && p.y == y end) %>
-
-              <% # Find which group this piece belongs to and get its color %>
-              <% bg_color =
-                cond do
-                  @selected_position == {x, y} ->
-                    "bg-blue-300"
-
-                  piece ->
-                    # Look for the piece in any group
-                    found_group_index =
-                      Enum.find_index(@word_groups, fn group ->
-                        Enum.any?(group, fn p -> p.x == piece.x && p.y == piece.y end)
-                      end)
-
-                    if found_group_index do
-                      # Use the group's index to select a color
-                      Enum.at(colors, rem(found_group_index, length(colors)))
-                    else
-                      "bg-yellow-300"
-                    end
-
-                  true ->
-                    "bg-white"
-                end %>
-
-              <button
-                phx-click="select-position"
-                phx-value-x={x}
-                phx-value-y={y}
-                class={"w-10 h-10 flex items-center justify-center font-medium rounded #{bg_color} #{if @selected_position == {x, y}, do: "ring-2 ring-blue-500", else: ""}"}
-              >
-                <%= if piece do %>
-                  {String.slice(piece.word, 0, 1)}
-                <% else %>
-                  <span class="text-gray-300">·</span>
-                <% end %>
-              </button>
-            <% end %>
-          <% end %>
         </div>
       </div>
-    </div>
-    
-<!-- Word placement form -->
-    <div class="bg-gray-100 p-4 rounded-lg shadow mb-6">
-      <h2 class="text-xl font-semibold mb-4">Place a Word</h2>
-      <p class="text-sm text-gray-700 mb-3">
-        Choose a position on the board and enter a word that relates to your previously placed words for higher scores.
-      </p>
-
-      <%= if @error_message do %>
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {@error_message}
-        </div>
-      <% end %>
-
-      <form phx-submit="place-word" id="word-form">
-        <div class="mb-4">
-          <label for="word" class="block mb-2">Word</label>
-          <input
-            type="text"
-            id="word"
-            name="word"
-            value={@current_word}
-            placeholder="Enter a word"
-            required
-            class="w-full p-2 border rounded"
-          />
-        </div>
-
-        <div>
-          <button
-            type="submit"
-            id="place-word-btn"
-            disabled={@selected_position == nil}
-            class="px-4 py-2 bg-blue-500 text-white rounded"
-          >
-            Place Word
-          </button>
-        </div>
-      </form>
-
-      <%= if @selected_position do %>
-        <p class="mt-2">
-          Selected position: {elem(@selected_position, 0)}, {elem(@selected_position, 1)}
-        </p>
-      <% else %>
-        <p class="mt-2">
-          Select a position on the board to place your word
-        </p>
-      <% end %>
-    </div>
-    
-<!-- Reset button -->
-    <div>
-      <button
-        phx-click="reset-game"
-        id="reset-game-btn"
-        class="px-4 py-2 bg-red-500 text-white rounded"
-      >
-        Reset Game
-      </button>
     </div>
   </div>
 </Layouts.app>

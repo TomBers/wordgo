@@ -263,25 +263,39 @@ defmodule Wordgo.WordToVec.Vocabulary do
   # A small default vocabulary. Replace at runtime with `set_vocabulary/1` or a file.
   defp default_vocabulary do
     ~w[
-      cat kitten feline dog puppy canine animal pet lion tiger bear
-      car automobile vehicle truck bus train plane boat bike bicycle
-      computer laptop keyboard mouse monitor screen software hardware code
-      program programming developer engineer data database server client api
-      tree forest leaf branch root flower plant grass garden nature
-      water ocean river lake sea stream rain snow ice fire heat burn hot
-      cold warm cool chill sun moon star sky cloud wind storm weather
-      happy joy glad cheerful smile laugh sad unhappy sorrow cry tear
-      king queen prince princess royal throne crown empire kingdom realm
-      man woman boy girl father mother parent child adult human person
-      good great excellent fine nice bad poor terrible awful worse worst
-      fast quick rapid slow speed swift sluggish delay late early ontime
-      big large huge giant small tiny little minute short long tall high low
-      red blue green yellow orange purple pink black white gray brown
-      city town village country nation state capital road street avenue
-      music song melody rhythm harmony sound noise art paint draw picture
-      book read write story poem novel paper page letter word sentence
-      food eat drink bread rice meat fish fruit vegetable sugar salt spice
-      school student teacher class lesson study learn education university
+      cat kitten feline dog puppy canine animal pet lion tiger bear wolf fox deer horse sheep goat pig cow chicken duck goose eagle hawk owl shark whale dolphin octopus crab spider insect ant bee butterfly
+      car automobile vehicle truck bus train plane boat bike bicycle scooter motorcycle subway tram rocket spaceship ferry yacht sailboat canoe kayak
+      computer laptop keyboard mouse monitor screen software hardware code coding program programming developer engineer data database server client api internet web website browser email network protocol cloud storage cache queue algorithm model training inference dataset pipeline
+      program programming developer engineer data database server client api library framework package module function process thread task job pipeline
+      tree forest leaf branch root flower plant grass garden nature jungle rainforest swamp meadow prairie wood woodland bush shrub seed soil
+      water ocean river lake sea stream rain snow ice fire heat burn hot cold warm cool chill thunder lightning rainbow tornado hurricane blizzard fog mist drizzle hail storm weather climate
+      sun moon star sky cloud wind storm weather sunrise sunset daylight night midnight dawn dusk
+      happy joy glad cheerful smile laugh sad unhappy sorrow cry tear angry afraid scared nervous anxious calm relaxed bored excited surprised tired sleepy hungry thirsty
+      king queen prince princess royal throne crown empire kingdom realm leader ruler emperor empress lord lady duke duchess knight noble
+      man woman boy girl father mother parent child adult human person people friend family baby kid teen youth elder
+      good great excellent fine nice bad poor terrible awful worse worst better best
+      fast quick rapid slow speed swift sluggish delay late early ontime punctual timely
+      big large huge giant small tiny little minute short long tall high low wide narrow deep shallow thick thin heavy light
+      red blue green yellow orange purple pink black white gray brown cyan magenta teal turquoise beige maroon navy violet indigo gold silver bronze
+      city town village country nation state capital road street avenue lane highway freeway bridge tunnel port harbor downtown suburb rural urban
+      place location area region zone district center middle corner edge border coast shore beach island mountain hill valley desert canyon glacier volcano
+      house home apartment room kitchen bathroom bedroom living dining garage window door floor ceiling wall roof table chair sofa bed desk lamp light fan clock phone
+      music song melody rhythm harmony sound noise art paint draw picture image photo film movie cinema theater museum gallery dance
+      book read write story poem novel paper page letter word sentence paragraph chapter author title library publish print
+      food eat drink bread rice meat beef pork chicken fish seafood fruit vegetable sugar salt spice pepper herb oil butter cheese milk egg yogurt cereal chocolate candy cookie cake pie soup salad pizza pasta burger sandwich
+      drink beverage coffee tea juice soda water beer wine whiskey vodka rum milkshake cocktail
+      school student teacher class lesson study learn education university college campus lecture exam test grade homework
+      health medicine hospital clinic doctor nurse pill drug vaccine therapy pain fever cough flu disease virus bacteria injury wound
+      sport soccer football baseball basketball tennis golf hockey volleyball rugby cricket swim run walk jump climb lift throw catch kick hit score team coach referee
+      clothing shirt pants jeans dress skirt coat jacket hat cap shoe boot sock glove scarf belt sweater hoodie t-shirt
+      tools hammer screw screwdriver wrench pliers saw drill nail bolt ladder shovel axe knife tape measure level chisel
+      body head face hair eye ear nose mouth tooth teeth tongue hand arm leg foot feet heart brain stomach back skin bone
+      finance money bank cash coin credit debit card loan interest tax price cost buy sell trade market stock bond budget income expense pay salary wage bill profit loss
+      time date day week month year morning evening night today tomorrow yesterday spring summer autumn winter january february march april may june july august september october november december
+      numbers zero one two three four five six seven eight nine ten hundred thousand million billion
+      directions north south east west left right up down forward backward inside outside near far
+      shapes circle square triangle rectangle line point curve angle edge corner center middle
+      verbs be have do say make go know think take see come want use find give tell work call try ask need feel seem leave put keep let begin help talk turn start show hear play move like live believe hold bring happen write provide sit stand lose pay meet include continue set learn change lead understand watch follow stop create speak read allow add spend grow open walk win offer remember love consider appear buy wait serve die send expect build stay fall cut reach kill remain suggest raise pass sell require report decide return explain hope develop carry break receive agree support hit produce eat drink sleep drive ride fly swim
     ]
   end
 end

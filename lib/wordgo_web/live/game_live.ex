@@ -14,10 +14,29 @@ defmodule WordgoWeb.GameLive do
     # We use a string ID but the scoring system only uses the player struct
     test_player = Game.create_player("player1", "Test Player")
 
+    # Start with some test pieces
+    {:ok, board_with_one_piece} =
+      Game.place_word(
+        empty_board,
+        {1, 1},
+        "bob",
+        "Test Player"
+      )
+
+    {:ok, board_with_two_pieces} =
+      Game.place_word(
+        board_with_one_piece,
+        {1, 2},
+        "bill",
+        "Test Player"
+      )
+
+    # -----------------------
+
     # Initialize with empty board and player
     socket =
       socket
-      |> assign(:board, empty_board)
+      |> assign(:board, board_with_two_pieces)
       |> assign(:board_size, @board_size)
       |> assign(:current_player, test_player)
       |> assign(:selected_position, nil)
@@ -133,8 +152,8 @@ defmodule WordgoWeb.GameLive do
                   |> assign(:word_groups, word_groups)
                   |> assign(:group_scores, group_scores)
 
-                IO.puts("Word groups in socket: #{inspect(socket.assigns.word_groups)}")
-                IO.puts("Group scores in socket: #{inspect(socket.assigns.group_scores)}")
+                # IO.puts("Word groups in socket: #{inspect(socket.assigns.word_groups)}")
+                # IO.puts("Group scores in socket: #{inspect(socket.assigns.group_scores)}")
 
                 {:noreply, socket}
 

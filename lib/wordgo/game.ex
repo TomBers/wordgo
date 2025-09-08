@@ -61,38 +61,6 @@ defmodule Wordgo.Game do
   end
 
   @doc """
-  Updates placed words list after placing a word.
-  In this implementation, we're using the Board's scoring mechanism.
-
-  ## Examples
-
-      iex> update_player_stats(player, "hello", placed_words)
-      {updated_player, updated_placed_words}
-
-  """
-  def update_player_stats(player, word, placed_words, x, y) do
-    # We don't modify the player struct since scoring is handled by Board.score
-
-    # Create a record for the placed word using the player name as the player identifier
-    placed_word = Piece.new(x, y, player.name, word)
-
-    {player, [placed_word | placed_words]}
-  end
-
-  @doc """
-  Creates a record for a placed word.
-
-  ## Examples
-
-      iex> create_placed_word_record(1, 2, "hello", "Player One")
-      %{x: 1, y: 2, word: "hello", player_name: "Player One"}
-
-  """
-  def create_placed_word_record(x, y, word, player_name) do
-    Piece.new(x, y, player_name, word)
-  end
-
-  @doc """
   Gets all pieces for a specific player from the board.
 
   ## Examples

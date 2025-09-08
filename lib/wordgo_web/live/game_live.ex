@@ -42,7 +42,6 @@ defmodule WordgoWeb.GameLive do
       |> assign(:selected_position, nil)
       |> assign(:current_word, "")
       |> assign(:error_message, nil)
-      |> assign(:placed_words, [])
       |> assign(:word_groups, [])
       |> assign(:group_scores, [])
       # Add current_scope for the layout
@@ -121,15 +120,6 @@ defmodule WordgoWeb.GameLive do
                 # Update player info and placed words list
                 current_player = socket.assigns.current_player
 
-                {_updated_player, updated_placed_words} =
-                  Game.update_player_stats(
-                    current_player,
-                    word,
-                    socket.assigns.placed_words,
-                    x,
-                    y
-                  )
-
                 # Get word groups and their scores
                 word_groups = Game.get_player_groups(updated_board, current_player.name)
                 IO.inspect(word_groups, label: "Word Groups")
@@ -148,7 +138,6 @@ defmodule WordgoWeb.GameLive do
                   |> assign(:selected_position, nil)
                   |> assign(:current_word, "")
                   |> assign(:error_message, nil)
-                  |> assign(:placed_words, updated_placed_words)
                   |> assign(:word_groups, word_groups)
                   |> assign(:group_scores, group_scores)
 
@@ -180,7 +169,6 @@ defmodule WordgoWeb.GameLive do
       |> assign(:selected_position, nil)
       |> assign(:current_word, "")
       |> assign(:error_message, nil)
-      |> assign(:placed_words, [])
       |> assign(:word_groups, [])
       |> assign(:group_scores, [])
       |> assign(:current_scope, "game")

@@ -17,7 +17,7 @@ defmodule Wordgo.Test.EmbeddingsHelper do
   def setup_mock_embeddings(_context) do
     # Store original module functions to restore after test
     original_module = Wordgo.WordToVec.Embeddings
-    original_serving_fn = &original_module.serving/0
+    _original_serving_fn = &original_module.serving/0
 
     # Mock the serving function
     mock_fn = fn -> WordEmbeddingsMock.serving() end

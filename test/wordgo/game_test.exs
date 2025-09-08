@@ -131,17 +131,4 @@ defmodule Wordgo.GameTest do
       assert result == {:error, "Position is already occupied"}
     end
   end
-
-  describe "update_player_stats/5" do
-    test "adds piece to placed_words list" do
-      player = Player.new("Player One")
-      placed_words = []
-
-      {_updated_player, updated_placed_words} =
-        Game.update_player_stats(player, "cat", placed_words, 1, 1)
-
-      assert length(updated_placed_words) == 1
-      assert List.first(updated_placed_words).word == "cat"
-    end
-  end
 end

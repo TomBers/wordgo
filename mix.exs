@@ -32,7 +32,7 @@ defmodule Wordgo.MixProject do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(:test), do: ["lib", "test/support", "test/support/mocks"]
   defp elixirc_paths(_), do: ["lib"]
 
   # Specifies your project dependencies.
@@ -68,7 +68,8 @@ defmodule Wordgo.MixProject do
       {:bandit, "~> 1.5"},
       {:tidewave, "~> 0.4", only: :dev},
       {:bumblebee, "~> 0.6.0"},
-      {:exla, "~> 0.2"}
+      {:exla, "~> 0.2"},
+      {:meck, "~> 0.9.2", only: :test}
     ]
   end
 

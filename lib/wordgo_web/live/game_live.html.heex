@@ -5,43 +5,119 @@
 <!-- Player info -->
     <div class="bg-blue-100 p-4 rounded-lg shadow mb-6">
       <h2 class="text-xl font-semibold mb-2">Player: {@current_player.name}</h2>
-      <p class="mb-1">Score: {Wordgo.Game.calculate_player_score(@board, @current_player)}</p>
+      <p class="mb-1">
+        Score: {Wordgo.Game.calculate_player_score(@board, @current_player.name)}
+      </p>
       <div class="text-xs text-gray-600 mb-2">
         <p>(Based on semantic word connections)</p>
         <p>Connected words with similar meanings score higher</p>
         <p>Try to place words that relate to each other!</p>
       </div>
-      <div class="mb-1">
+      <div class="mb-3">
         <p class="font-medium">Words placed:</p>
         <ul class="list-disc list-inside">
-          <%= for word <- Wordgo.Game.get_player_words(@board, @current_player) do %>
+          <%= for word <- Wordgo.Game.get_player_words(@board, @current_player.name) do %>
             <li>{word}</li>
           <% end %>
         </ul>
+      </div>
+
+      <div class="mt-4">
+        <p class="font-medium">Connected word groups:</p>
+        <p class="text-sm mb-1">Debug - Word Groups Length: {length(@word_groups)}</p>
+        <p class="text-sm mb-2">Debug - Group Scores Length: {length(@group_scores)}</p>
+
+        <%= if @word_groups == [] do %>
+          <p class="text-sm text-gray-600">No groups formed yet. Place more words!</p>
+        <% else %>
+          <div class="mt-2 space-y-3">
+            <%= for {{group, score}, index} <- Enum.with_index(@group_scores) do %>
+              <div class="bg-white p-2 rounded-md shadow-sm">
+                <p class="font-semibold">Group #{index + 1} (Score: {score})</p>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <%= for piece <- group do %>
+                    <span class="bg-blue-100 px-2 py-1 rounded text-sm">
+                      {piece.word} ({piece.x},{piece.y})
+                    </span>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
       </div>
     </div>
     
 <!-- Game board -->
     <div class="mb-6">
       <h2 class="text-xl font-semibold mb-4">Game Board</h2>
-      <div style={"display: grid; grid-template-columns: repeat(#{@board_size}, 1fr); gap: 4px;"}>
-        <%= for y <- 0..(@board_size-1) do %>
-          <%= for x <- 0..(@board_size-1) do %>
-            <% piece = Enum.find(@board.pieces, fn p -> p.x == x && p.y == y end) %>
-            <button
-              phx-click="select-position"
-              phx-value-x={x}
-              phx-value-y={y}
-              style={"width: 30px; height: 30px; text-align: center; background-color: #{if piece, do: "yellow", else: "white"}; #{if @selected_position == {x, y}, do: "border: 2px solid blue;", else: ""}"}
-            >
-              <%= if piece do %>
-                {String.slice(piece.word, 0, 1)}
-              <% else %>
-                -
-              <% end %>
-            </button>
+
+      <div class="flex flex-col items-start">
+        <div class="mb-2 flex gap-2 items-center">
+          <span class="w-4 h-4 inline-block bg-yellow-300 rounded-sm"></span>
+          <span class="text-sm">Word piece</span>
+
+          <% colors = [
+            "bg-red-300",
+            "bg-green-300",
+            "bg-blue-300",
+            "bg-purple-300",
+            "bg-pink-300",
+            "bg-indigo-300",
+            "bg-teal-300",
+            "bg-orange-300"
+          ] %>
+          <%= for {group, idx} <- Enum.with_index(@word_groups) do %>
+            <% color = Enum.at(colors, rem(idx, length(colors))) %>
+            <span class={"w-4 h-4 inline-block #{color} rounded-sm ml-2"}></span>
+            <span class="text-sm">Group #{idx + 1}</span>
           <% end %>
-        <% end %>
+        </div>
+
+        <div style={"display: grid; grid-template-columns: repeat(#{@board_size}, 1fr); gap: 4px;"}>
+          <%= for y <- 0..(@board_size-1) do %>
+            <%= for x <- 0..(@board_size-1) do %>
+              <% piece = Enum.find(@board.pieces, fn p -> p.x == x && p.y == y end) %>
+
+              <% # Find which group this piece belongs to and get its color %>
+              <% bg_color =
+                cond do
+                  @selected_position == {x, y} ->
+                    "bg-blue-300"
+
+                  piece ->
+                    # Look for the piece in any group
+                    found_group_index =
+                      Enum.find_index(@word_groups, fn group ->
+                        Enum.any?(group, fn p -> p.x == piece.x && p.y == piece.y end)
+                      end)
+
+                    if found_group_index do
+                      # Use the group's index to select a color
+                      Enum.at(colors, rem(found_group_index, length(colors)))
+                    else
+                      "bg-yellow-300"
+                    end
+
+                  true ->
+                    "bg-white"
+                end %>
+
+              <button
+                phx-click="select-position"
+                phx-value-x={x}
+                phx-value-y={y}
+                class={"w-10 h-10 flex items-center justify-center font-medium rounded #{bg_color} #{if @selected_position == {x, y}, do: "ring-2 ring-blue-500", else: ""}"}
+              >
+                <%= if piece do %>
+                  {String.slice(piece.word, 0, 1)}
+                <% else %>
+                  <span class="text-gray-300">·</span>
+                <% end %>
+              </button>
+            <% end %>
+          <% end %>
+        </div>
       </div>
     </div>
     
@@ -95,7 +171,7 @@
       <% end %>
     </div>
     
-<!-- Word list -->
+<!-- Word list and groups visualization -->
     <div class="bg-gray-100 p-4 rounded-lg shadow mb-6">
       <h2 class="text-xl font-semibold mb-4">Placed Words</h2>
       <p class="text-sm text-gray-700 mb-3">
@@ -105,24 +181,67 @@
       <%= if @placed_words == [] do %>
         <p>No words have been placed yet</p>
       <% else %>
-        <table class="w-full">
-          <thead>
-            <tr>
-              <th class="text-left p-2">Position</th>
-              <th class="text-left p-2">Word</th>
-              <th class="text-left p-2">Player</th>
-            </tr>
-          </thead>
-          <tbody>
-            <%= for word <- @placed_words do %>
-              <tr>
-                <td class="p-2">{word.x}, {word.y}</td>
-                <td class="p-2">{word.word}</td>
-                <td class="p-2">{word.player_name}</td>
-              </tr>
+        <div class="flex flex-wrap md:flex-nowrap gap-6">
+          <!-- Placed words table -->
+          <div class="w-full md:w-1/2">
+            <h3 class="text-lg font-medium mb-2">All Words</h3>
+            <table class="w-full">
+              <thead>
+                <tr>
+                  <th class="text-left p-2">Position</th>
+                  <th class="text-left p-2">Word</th>
+                  <th class="text-left p-2">Player</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for word <- @placed_words do %>
+                  <tr>
+                    <td class="p-2">{word.x}, {word.y}</td>
+                    <td class="p-2">{word.word}</td>
+                    <td class="p-2">{word.player}</td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+          
+<!-- Word groups visualization -->
+          <div class="w-full md:w-1/2">
+            <h3 class="text-lg font-medium mb-2">Connected Word Groups</h3>
+            <p class="text-sm mb-1">Debug - Word Groups Length: {length(@word_groups)}</p>
+            <p class="text-sm mb-2">Debug - Group Scores Length: {length(@group_scores)}</p>
+
+            <%= if @word_groups == [] do %>
+              <p class="text-sm text-gray-600">No connected groups yet.</p>
+            <% else %>
+              <div class="space-y-4">
+                <%= for {{group, score}, idx} <- Enum.with_index(@group_scores) do %>
+                  <% color_name =
+                    Enum.at(
+                      ["red", "green", "blue", "purple", "pink", "indigo", "teal", "orange"],
+                      rem(idx, 8)
+                    ) %>
+                  <div class={"bg-white p-3 rounded-md shadow-sm border-l-4 border-#{color_name}-500"}>
+                    <div class="flex justify-between items-center mb-2">
+                      <h4 class="font-medium">Group #{idx + 1}</h4>
+                      <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
+                        Score: {score}
+                      </span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                      <%= for piece <- group do %>
+                        <div class="bg-gray-50 px-3 py-1 rounded-md border border-gray-200">
+                          <span class="font-medium">{piece.word}</span>
+                          <span class="text-xs text-gray-500 ml-1">({piece.x},{piece.y})</span>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
             <% end %>
-          </tbody>
-        </table>
+          </div>
+        </div>
       <% end %>
     </div>
     

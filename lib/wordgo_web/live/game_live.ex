@@ -14,6 +14,7 @@ defmodule WordgoWeb.GameLive do
     # We use a string ID but the scoring system only uses the player struct
     test_player = Game.create_player("player1", "Test Player")
 
+    # Initialize with empty board and player
     socket =
       socket
       |> assign(:board, empty_board)
@@ -23,10 +24,35 @@ defmodule WordgoWeb.GameLive do
       |> assign(:current_word, "")
       |> assign(:error_message, nil)
       |> assign(:placed_words, [])
+      |> assign(:word_groups, [])
+      |> assign(:group_scores, [])
       # Add current_scope for the layout
       |> assign(:current_scope, "game")
 
+    # Send ourselves a message after mount to update groups
+    if connected?(socket) do
+      send(self(), :update_groups)
+    end
+
     {:ok, socket}
+  end
+
+  @impl true
+  def handle_info(:update_groups, socket) do
+    # Get the current board and player
+    board = socket.assigns.board
+    player_name = socket.assigns.current_player.name
+
+    # Get word groups and their scores
+    word_groups = Game.get_player_groups(board, player_name)
+    group_scores = Game.get_player_groups_with_scores(board, player_name)
+
+    socket =
+      socket
+      |> assign(:word_groups, word_groups)
+      |> assign(:group_scores, group_scores)
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -70,7 +96,7 @@ defmodule WordgoWeb.GameLive do
                    socket.assigns.board,
                    {x, y},
                    word,
-                   socket.assigns.current_player
+                   socket.assigns.current_player.name
                  ) do
               {:ok, updated_board} ->
                 # Update player info and placed words list
@@ -85,6 +111,16 @@ defmodule WordgoWeb.GameLive do
                     y
                   )
 
+                # Get word groups and their scores
+                word_groups = Game.get_player_groups(updated_board, current_player.name)
+                IO.inspect(word_groups, label: "Word Groups")
+
+                # Get updated groups and scores using the Game module functions
+                word_groups = Game.get_player_groups(updated_board, current_player.name)
+
+                group_scores =
+                  Game.get_player_groups_with_scores(updated_board, current_player.name)
+
                 socket =
                   socket
                   |> assign(:board, updated_board)
@@ -94,6 +130,11 @@ defmodule WordgoWeb.GameLive do
                   |> assign(:current_word, "")
                   |> assign(:error_message, nil)
                   |> assign(:placed_words, updated_placed_words)
+                  |> assign(:word_groups, word_groups)
+                  |> assign(:group_scores, group_scores)
+
+                IO.puts("Word groups in socket: #{inspect(socket.assigns.word_groups)}")
+                IO.puts("Group scores in socket: #{inspect(socket.assigns.group_scores)}")
 
                 {:noreply, socket}
 
@@ -108,6 +149,7 @@ defmodule WordgoWeb.GameLive do
   def handle_event("reset-game", _params, socket) do
     # Create a new empty board using the Board module
     empty_board = Game.create_empty_board(@board_size)
+    IO.puts("Reset game - created empty board")
 
     # Reset the player using the Player module
     test_player = Game.create_player("player1", "Test Player")
@@ -120,7 +162,14 @@ defmodule WordgoWeb.GameLive do
       |> assign(:current_word, "")
       |> assign(:error_message, nil)
       |> assign(:placed_words, [])
+      |> assign(:word_groups, [])
+      |> assign(:group_scores, [])
       |> assign(:current_scope, "game")
+
+    # Clear the board but also send an update message to refresh groups
+    if connected?(socket) do
+      send(self(), :update_groups)
+    end
 
     {:noreply, socket}
   end

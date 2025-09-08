@@ -45,8 +45,16 @@ defmodule Wordgo.Game do
     if Enum.any?(board.pieces, fn piece -> piece.x == x && piece.y == y end) do
       {:error, "Position is already occupied"}
     else
+      # Handle either Player struct or string
+      player_id =
+        case player do
+          %Player{} -> player.name
+          # Assume it's already a string identifier
+          _ -> player
+        end
+
       # Create a new piece and place it on the board
-      piece = Piece.new(x, y, player, word)
+      piece = Piece.new(x, y, player_id, word)
       updated_board = Board.place_piece(board, piece)
       {:ok, updated_board}
     end
@@ -65,7 +73,7 @@ defmodule Wordgo.Game do
   def update_player_stats(player, word, placed_words, x, y) do
     # We don't modify the player struct since scoring is handled by Board.score
 
-    # Create a record for the placed word
+    # Create a record for the placed word using the player name as the player identifier
     placed_word = Piece.new(x, y, player.name, word)
 
     {player, [placed_word | placed_words]}
@@ -93,8 +101,16 @@ defmodule Wordgo.Game do
       ["word1", "word2"]
   """
   def get_player_words(board, player) do
+    # Handle either Player struct or string
+    player_id =
+      case player do
+        %Player{} -> player.name
+        # Assume it's already a string identifier
+        _ -> player
+      end
+
     board.pieces
-    |> Enum.filter(fn piece -> piece.player == player end)
+    |> Enum.filter(fn piece -> piece.player == player_id end)
     |> Enum.map(fn piece -> piece.word end)
   end
 
@@ -107,12 +123,20 @@ defmodule Wordgo.Game do
       15
   """
   def calculate_player_score(board, player) do
+    # Handle either Player struct or string
+    player_id =
+      case player do
+        %Player{} -> player.name
+        # Assume it's already a string identifier
+        _ -> player
+      end
+
     # Use the Board's scoring mechanism
     score_map = Board.score(board)
 
     # Find the player's score from the score map
     # Board.score returns a list of {player, score} tuples
-    case Enum.find(score_map, fn {p, _score} -> p == player end) do
+    case Enum.find(score_map, fn {p, _score} -> p == player_id end) do
       {_player, score} -> score
       # Return 0 if player not found in score map
       nil -> 0
@@ -132,13 +156,30 @@ defmodule Wordgo.Game do
       ]
   """
   def get_player_groups(board, player) do
+    # Handle either Player struct or string
+    player_id =
+      case player do
+        %Player{} -> player.name
+        # Assume it's already a string identifier
+        _ -> player
+      end
+
     # Get all pieces for the player
     player_pieces =
       board.pieces
-      |> Enum.filter(fn piece -> piece.player == player end)
+      |> Enum.filter(fn piece -> piece.player == player_id end)
+
+    # Debug log the player pieces
+    IO.inspect(player_pieces, label: "Player pieces before grouping")
+    IO.puts("Filtering for player_id: #{player_id}")
 
     # Use Board.get_groups to find all connected groups
-    Board.get_groups(player_pieces)
+    groups = Board.get_groups(player_pieces)
+
+    # Debug log the groups
+    IO.inspect(groups, label: "Groups after Board.get_groups")
+
+    groups
   end
 
   @doc """
@@ -154,12 +195,31 @@ defmodule Wordgo.Game do
       ]
   """
   def get_player_groups_with_scores(board, player) do
-    # Get all groups for the player
-    groups = get_player_groups(board, player)
+    # Handle either Player struct or string
+    player_id =
+      case player do
+        %Player{} -> player.name
+        # Assume it's already a string identifier
+        _ -> player
+      end
+
+    # Get all groups for the player using the normalized player_id
+    groups = get_player_groups(board, player_id)
+
+    # Debug log the groups received
+    IO.inspect(groups, label: "Groups before scoring")
 
     # Calculate score for each group
-    Enum.map(groups, fn group ->
-      {group, Board.score_group(group)}
-    end)
+    group_scores =
+      Enum.map(groups, fn group ->
+        score = Board.score_group(group)
+        IO.inspect({group, score}, label: "Group with score")
+        {group, score}
+      end)
+
+    # Debug log all group scores
+    IO.inspect(group_scores, label: "All group scores")
+
+    group_scores
   end
 end

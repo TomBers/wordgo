@@ -6,7 +6,10 @@ defmodule WordgoWeb.GameLive do
   @board_size 6
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
+    game_id = params["game_id"]
+    IO.inspect(game_id)
+
     # Create an empty board using the Board module
     empty_board = Game.create_empty_board(@board_size)
 

@@ -137,15 +137,8 @@ defmodule Wordgo.Game do
       board.pieces
       |> Enum.filter(fn piece -> piece.player == player_id end)
 
-    # Debug log the player pieces
-    IO.inspect(player_pieces, label: "Player pieces before grouping")
-    IO.puts("Filtering for player_id: #{player_id}")
-
     # Use Board.get_groups to find all connected groups
     groups = Board.get_groups(player_pieces)
-
-    # Debug log the groups
-    IO.inspect(groups, label: "Groups after Board.get_groups")
 
     groups
   end
@@ -174,19 +167,13 @@ defmodule Wordgo.Game do
     # Get all groups for the player using the normalized player_id
     groups = get_player_groups(board, player_id)
 
-    # Debug log the groups received
-    IO.inspect(groups, label: "Groups before scoring")
-
     # Calculate score for each group
     group_scores =
       Enum.map(groups, fn group ->
         score = Board.score_group(group)
-        IO.inspect({group, score}, label: "Group with score")
+
         {group, score}
       end)
-
-    # Debug log all group scores
-    IO.inspect(group_scores, label: "All group scores")
 
     group_scores
   end

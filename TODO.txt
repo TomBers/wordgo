@@ -1,1 +1,24 @@
 Model cache: /Users/tomberman/Library/Caches/bumblebee/huggingface/BAAI--bge-small-en-v15
+
+http://localhost:4000/?game_id=room1&player=Alice&ai=true&ai_difficulty=hard
+
+http://localhost:4000/?game_id=room1&player=Alice&ai=true
+
+  # Start with some test pieces
+    # {:ok, board_with_one_piece} =
+    #   Game.place_word(
+    #     empty_board,
+    #     {1, 1},
+    #     "bob",
+    #     "Test Player"
+    #   )
+
+    # {:ok, board_with_two_pieces} =
+    #   Game.place_word(
+    #     board_with_one_piece,
+    #     {1, 2},
+    #     "bill",
+    #     "Test Player"
+    #   )
+
+    # -----------------------

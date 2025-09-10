@@ -115,4 +115,39 @@ defmodule Wordgo.Game.Board do
     group_size = length(group)
     group_size * GetScore.score_group(group |> Enum.map(& &1.word))
   end
+
+  # === Adjacency and position helpers (for AI heuristics) ===
+
+  # Returns true if the coordinate is within the board bounds
+  def in_bounds?({x, y}, %__MODULE__{x_size: xs, y_size: ys}) do
+    x >= 0 and y >= 0 and x < xs and y < ys
+  end
+
+  # Returns the 4-neighborhood (up, down, left, right) within bounds
+  def neighbors({x, y}, %__MODULE__{} = board) do
+    [{x + 1, y}, {x - 1, y}, {x, y + 1}, {x, y - 1}]
+    |> Enum.filter(&in_bounds?(&1, board))
+  end
+
+  # Returns a list of occupied positions as {x, y}
+  def occupied_positions(%__MODULE__{} = board) do
+    Enum.map(board.pieces, &{&1.x, &1.y})
+  end
+
+  # Returns a list of empty positions as {x, y}
+  def empty_positions(%__MODULE__{} = board) do
+    occupied = MapSet.new(occupied_positions(board))
+
+    for y <- 0..(board.y_size - 1),
+        x <- 0..(board.x_size - 1),
+        not MapSet.member?(occupied, {x, y}),
+        do: {x, y}
+  end
+
+  # Returns a list of {x, y} for the given player's pieces
+  def player_piece_coords(%__MODULE__{} = board, player) do
+    board.pieces
+    |> Enum.filter(&(&1.player == player))
+    |> Enum.map(&{&1.x, &1.y})
+  end
 end

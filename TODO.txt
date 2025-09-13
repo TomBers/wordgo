@@ -1,3 +1,7 @@
+1) Restructure game_live.ex to be more functional / easier to read
+2) Ensure that each word can only be used once, the AI is using the same word multiple times.
+3) Include word length in scoring (??)
+
 Model cache: /Users/tomberman/Library/Caches/bumblebee/huggingface/BAAI--bge-small-en-v15
 
 http://localhost:4000/?game_id=room1&player=Alice&ai=true&ai_difficulty=hard

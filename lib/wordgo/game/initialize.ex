@@ -27,6 +27,13 @@ defmodule Wordgo.Game.Initialize do
     current_player = Game.create_player(player_name, player_name)
     player_colors = build_player_colors(current_player, ai_config.enabled)
 
+    players =
+      if ai_config.enabled do
+        [current_player.name, "AI"]
+      else
+        [current_player.name]
+      end
+
     # Build complete assigns map
     %{
       board: empty_board,
@@ -40,7 +47,7 @@ defmodule Wordgo.Game.Initialize do
       current_scope: "game",
       game_id: game_id,
       topic: "game:" <> game_id,
-      players: [current_player.name],
+      players: players,
       player_colors: player_colors,
       current_turn: current_player.name,
       ai_enabled: ai_config.enabled,
@@ -67,9 +74,6 @@ defmodule Wordgo.Game.Initialize do
 
     # Subscribe to game topic
     PubSub.subscribe(pubsub_module, topic)
-
-    # Announce players
-    announce_players(pubsub_module, topic, current_player_name, ai_enabled)
 
     # Return messages to send
     [:request_state, :update_groups]
@@ -118,14 +122,6 @@ defmodule Wordgo.Game.Initialize do
 
   defp generate_player_name do
     "Player-#{:erlang.unique_integer([:positive])}"
-  end
-
-  defp announce_players(pubsub_module, topic, player_name, ai_enabled) do
-    PubSub.broadcast(pubsub_module, topic, {:player_joined, player_name})
-
-    if ai_enabled do
-      PubSub.broadcast(pubsub_module, topic, {:player_joined, "AI"})
-    end
   end
 
   # Deterministic color assignment based on player name

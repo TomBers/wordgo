@@ -1,5 +1,5 @@
 <Layouts.app flash={@flash} current_scope={@current_scope}>
-  <div class="container mx-auto px-4 py-2">
+  <div class="mx-auto px-4 py-2">
     <div class="flex flex-col sm:flex-row gap-4 items-start">
       <!-- Left Column: Game Board and Word Placement -->
       <div class="flex-1 min-w-0">
@@ -10,7 +10,7 @@
 
             <div
               class="grid gap-2 w-full"
-              style={"grid-template-columns: repeat(#{@board_size}, minmax(0, 1fr));"}
+              style={"grid-template-columns: repeat(#{@board_size}, minmax(0, 1fr)); width: min(100%, 90vh);"}
             >
               <%= for y <- 0..(@board_size-1) do %>
                 <%= for x <- 0..(@board_size-1) do %>
@@ -58,7 +58,7 @@
         </div>
       </div>
 
-      <div class="w-full sm:w-80 shrink-0 mt-3 sm:mt-0">
+      <div class="w-full sm:w-64 lg:w-72 shrink-0 mt-3 sm:mt-0">
         <div class="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg shadow mb-3 relative">
           <h2 class="text-lg font-semibold mb-1">Player: {@current_player.name}</h2>
           <div class="flex items-center justify-between mb-1">

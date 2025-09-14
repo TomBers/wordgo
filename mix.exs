@@ -66,7 +66,7 @@ defmodule Wordgo.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:tidewave, "~> 0.4", only: :dev},
+      {:tidewave, "~> 0.5", only: :dev},
       {:bumblebee, "~> 0.6.0"},
       {:exla, "~> 0.2"},
       {:meck, "~> 0.9.2", only: :test}

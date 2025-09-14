@@ -271,18 +271,20 @@ defmodule WordgoWeb.GameLive do
     if socket.assigns[:synced?] do
       {:noreply, socket}
     else
-      players =
-        state.players
-        |> Enum.uniq()
-        |> Kernel.++(Enum.reject([socket.assigns.current_player.name], &(&1 in state.players)))
-        |> Enum.uniq()
+      # Combine the players from the received state with any players this client
+      # already knows about from join events, creating a complete list.
+      players = (state.players ++ socket.assigns.players) |> Enum.uniq()
+
+      # Now that we have the full list of players, broadcast it to all clients
+      # to ensure everyone is in sync.
+      PubSub.broadcast(Wordgo.PubSub, socket.assigns.topic, {:update_players, players})
 
       socket =
         socket
         |> assign(:board, state.board)
         |> assign(:players, players)
         |> assign(:current_turn, state.current_turn)
-        |> assign(:player_colors, state.player_colors || build_player_colors(players))
+        |> assign(:player_colors, build_player_colors(players))
         |> assign(:ai_difficulty, state.ai_difficulty || socket.assigns.ai_difficulty)
         |> assign(:synced?, true)
 
@@ -299,7 +301,28 @@ defmodule WordgoWeb.GameLive do
       (socket.assigns.player_colors || %{})
       |> Map.put_new(player_name, player_color(player_name))
 
-    {:noreply, socket |> assign(:players, players) |> assign(:player_colors, colors)}
+    socket =
+      socket
+      |> assign(:players, players)
+      |> assign(:player_colors, colors)
+
+    # The new player receives their own join message, and this is the trigger
+    # to request the current game state from another client.
+    if player_name == socket.assigns.current_player.name do
+      send(self(), :request_state)
+    end
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:update_players, players}, socket) do
+    # This message is broadcast by a client that has just synced its state
+    # to ensure all clients have a consistent view of the players.
+    {:noreply,
+     socket
+     |> assign(:players, players)
+     |> assign(:player_colors, build_player_colors(players))}
   end
 
   @impl true

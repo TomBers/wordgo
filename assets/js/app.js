@@ -26,10 +26,27 @@ import {hooks as colocatedHooks} from "phoenix-colocated/wordgo"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+const hooks = {
+  ...colocatedHooks,
+  AutoFocusSelect: {
+    focusAndSelect() {
+      const el = this.el;
+      if (!el) return;
+      requestAnimationFrame(() => {
+        if (typeof el.focus === 'function') el.focus();
+        if (typeof el.select === 'function') el.select();
+        if (typeof el.setSelectionRange === 'function') el.setSelectionRange(0, el.value?.length || 0);
+      });
+    },
+    mounted() { this.focusAndSelect(); },
+    updated() { this.focusAndSelect(); }
+  }
+}
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks,
 })
 
 // Show progress bar on live navigation and form submits

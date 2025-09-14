@@ -1,4 +1,4 @@
-<Layouts.app flash={@flash}>
+<Layouts.app flash={@flash} current_scope={@current_scope}>
   <div class="container mx-auto px-4 py-2">
     <h1 class="text-2xl font-bold mb-2">Word Game</h1>
 
@@ -10,28 +10,7 @@
           <h2 class="text-lg font-semibold mb-1">Game Board</h2>
 
           <div class="flex flex-col items-start">
-            <div class="mb-1 flex flex-wrap gap-1 items-center text-xs">
-              <span class="w-4 h-4 inline-block bg-yellow-300 dark:bg-yellow-500 rounded-sm">
-              </span>
-              <span class="text-sm">Word piece</span>
-
-              <% colors = [
-                "bg-red-300",
-                "bg-green-300",
-                "bg-blue-300",
-                "bg-purple-300",
-                "bg-pink-300",
-                "bg-indigo-300",
-                "bg-teal-300",
-                "bg-orange-300"
-              ] %>
-              <%= for {group, idx} <- Enum.with_index(@word_groups) do %>
-                <% color = Enum.at(colors, rem(idx, length(colors))) %>
-                <span class={"w-4 h-4 inline-block #{color} dark:#{String.replace(color, "-300", "-500")} rounded-sm ml-2"}>
-                </span>
-                <span class="text-sm">Group #{idx + 1}</span>
-              <% end %>
-            </div>
+            <div class="mb-1 text-xs"></div>
 
             <div style={"display: grid; grid-template-columns: repeat(#{@board_size}, 1fr); gap: 4px;"}>
               <%= for y <- 0..(@board_size-1) do %>
@@ -45,18 +24,7 @@
                         "bg-blue-300 dark:bg-blue-500"
 
                       piece ->
-                        # Look for the piece in any group
-                        found_group_index =
-                          Enum.find_index(@word_groups, fn group ->
-                            Enum.any?(group, fn p -> p.x == piece.x && p.y == piece.y end)
-                          end)
-
-                        if found_group_index do
-                          # Use the group's index to select a color
-                          Enum.at(colors, rem(found_group_index, length(colors)))
-                        else
-                          "bg-yellow-300"
-                        end
+                        Map.get(@player_colors || %{}, piece.player, "bg-yellow-300")
 
                       true ->
                         "bg-white dark:bg-gray-700"
@@ -66,6 +34,7 @@
                     phx-click="select-position"
                     phx-value-x={x}
                     phx-value-y={y}
+                    title={if piece, do: piece.word}
                     class={"w-10 h-10 flex items-center justify-center font-medium rounded #{bg_color} #{if @selected_position == {x, y}, do: "ring-2 ring-blue-500", else: ""} transition-colors duration-150 hover:brightness-90 dark:hover:brightness-110 hover:shadow-sm"}
                   >
                     <%= if piece do %>
@@ -147,10 +116,20 @@
         <!-- Player info -->
         <div class="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg shadow mb-3">
           <h2 class="text-lg font-semibold mb-1">Player: {@current_player.name}</h2>
-          <p class="mb-1">
-            Score: {Wordgo.Game.calculate_player_score(@board, @current_player.name)
-            |> round_score()}
-          </p>
+          <div class="flex items-center justify-between mb-1">
+            <p>
+              Score: {Wordgo.Game.calculate_player_score(@board, @current_player.name)
+              |> round_score()}
+            </p>
+            <span class={[
+              "px-2 py-0.5 rounded text-xs font-medium",
+              @current_turn == @current_player.name && "bg-green-600 text-white",
+              @current_turn != @current_player.name &&
+                "bg-gray-300 dark:bg-gray-700 dark:text-gray-200"
+            ]}>
+              Turn: {@current_turn}
+            </span>
+          </div>
           <div class="text-xs text-gray-600 dark:text-gray-400 mb-2">
             <p>(Based on semantic word connections)</p>
             <p>Connected words with similar meanings score higher</p>
@@ -158,31 +137,56 @@
           </div>
 
           <div class="mt-2">
-            <p class="font-medium text-sm">Connected word groups:</p>
-
-            <%= if @word_groups == [] do %>
-              <p class="text-sm text-gray-600 dark:text-gray-400">
-                No groups formed yet. Place more words!
-              </p>
-            <% else %>
-              <div class="mt-1 space-y-2">
-                <%= for {{group, score}, index} <- Enum.with_index(@group_scores) do %>
-                  <div class="bg-white dark:bg-gray-800 p-1 rounded-md shadow-sm">
-                    <p class="font-semibold text-xs">
-                      Group #{index + 1} (Score: {round_score(score)})
-                    </p>
-                    <div class="flex flex-wrap gap-1 mt-1">
-                      <%= for piece <- group do %>
-                        <span class="bg-blue-100 dark:bg-blue-800/50 px-1 py-0.5 rounded text-xs">
-                          {piece.word} ({piece.x},{piece.y})
-                        </span>
-                      <% end %>
-                    </div>
-                  </div>
-                <% end %>
-              </div>
-            <% end %>
+            <p class="font-medium text-sm">Players &amp; Scores</p>
+            <ul class="mt-1 space-y-0.5">
+              <%= for name <- (@players || []) do %>
+                <li class="text-sm flex items-center">
+                  <span class={[
+                    "inline-block w-2 h-2 rounded-full mr-2",
+                    Map.get(@player_colors || %{}, name, "bg-gray-400"),
+                    name == @current_turn && "ring-2 ring-offset-1 ring-green-600"
+                  ]}>
+                  </span>
+                  <span>{name}</span>
+                  <span class="ml-2 text-xs text-gray-700 dark:text-gray-300">
+                    Score: {round_score(Wordgo.Game.calculate_player_score(@board, name))}
+                  </span>
+                  <%= if name == @current_player.name do %>
+                    <span class="ml-1 text-xs italic text-gray-600 dark:text-gray-400">
+                      (you)
+                    </span>
+                  <% end %>
+                  <%= if name == @current_turn do %>
+                    <span class="ml-1 text-xs italic text-green-700 dark:text-green-400">
+                      (turn)
+                    </span>
+                  <% end %>
+                </li>
+              <% end %>
+            </ul>
           </div>
+
+          <%= if @ai_enabled do %>
+            <div class="mt-3">
+              <p class="font-medium text-sm mb-1">AI Settings</p>
+              <form id="ai-difficulty-form" phx-change="set-ai-difficulty">
+                <label for="ai-difficulty" class="text-xs mr-2 dark:text-gray-200">
+                  Difficulty
+                </label>
+                <select
+                  id="ai-difficulty"
+                  name="difficulty"
+                  class="text-sm p-1 rounded border dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  <option value="easy" selected={@ai_difficulty == "easy"}>Easy</option>
+                  <option value="medium" selected={@ai_difficulty in [nil, "medium"]}>
+                    Medium
+                  </option>
+                  <option value="hard" selected={@ai_difficulty == "hard"}>Hard</option>
+                </select>
+              </form>
+            </div>
+          <% end %>
         </div>
       </div>
     </div>

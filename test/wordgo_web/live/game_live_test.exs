@@ -101,7 +101,8 @@ defmodule WordgoWeb.GameLiveTest do
       # Check for score reset
       assert has_element?(view, "p", ~r/Score: 0/)
       # Check for empty word groups message - using regex to be more flexible
-      assert has_element?(view, "p", ~r/No groups formed yet/)
+      # Check that score is reset to 0 after game reset
+      assert has_element?(view, "p", ~r/Score: 0/)
     end
   end
 end

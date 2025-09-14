@@ -28,7 +28,9 @@ defmodule Wordgo.WordToVec.GetScore do
     similarities
     |> Enum.map(&Nx.to_number/1)
     |> Enum.sum()
-    |> Kernel./(length(similarities))
+
+    # Ensure that bigger groups lead to higher scores
+    # |> Kernel./(length(similarities))
   end
 
   @doc """

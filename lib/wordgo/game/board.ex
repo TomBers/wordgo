@@ -9,10 +9,12 @@ defmodule Wordgo.Game.Board do
 
   def add_bonus(board, num \\ 2) do
     range = 0..(board.x_size - 1)
-
-    bonus =
-      Enum.map(1..num, fn _ -> Bonus.gen_piece({Enum.random(range), Enum.random(range)}) end)
-
+    # Generate all possible coordinates
+    all_coords = for x <- range, y <- range, do: {x, y}
+    available_coords = all_coords
+    # Shuffle and take up to num unique, unoccupied coordinates
+    selected_coords = available_coords |> Enum.shuffle() |> Enum.take(num)
+    bonus = Enum.map(selected_coords, fn coord -> Bonus.gen_piece(coord) end)
     %{board | bonus: bonus ++ board.bonus}
   end
 

@@ -51,10 +51,6 @@ defmodule Wordgo.WordToVec.TestEmbeddings do
     embedding = GetScore.get_embedding([word])
     shape = Nx.shape(List.first(embedding))
 
-    IO.puts("Successfully generated embedding for '#{word}'")
-    IO.puts("Embedding shape: #{inspect(shape)}")
-    IO.puts("First 5 values: #{inspect(Nx.to_flat_list(embedding) |> Enum.take(5))}")
-
     embedding
   end
 end

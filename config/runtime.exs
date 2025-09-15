@@ -21,6 +21,8 @@ if System.get_env("PHX_SERVER") do
 end
 
 if config_env() == :prod do
+  config :bumblebee, :cache_dir, System.get_env("BUMBLEBEE_CACHE_DIR") || "/data/bumblebee-cache"
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """

@@ -34,7 +34,7 @@ defmodule Wordgo.Game.Board do
 
     Enum.zip(
       Enum.map(player_pieces, &List.first(&1).player),
-      Enum.map(player_pieces, &score_pieces(&1))
+      Enum.map(player_pieces, &score_pieces(&1, board))
     )
   end
 
@@ -65,13 +65,13 @@ defmodule Wordgo.Game.Board do
     groups
   end
 
-  defp score_pieces(pieces) do
+  defp score_pieces(pieces, board) do
     # Get all connected groups
     groups = get_groups(pieces)
 
-    # Calculate and sum up scores for all groups
+    # Calculate and sum up scores for all groups with bonus multipliers
     Enum.reduce(groups, 0, fn group, acc ->
-      acc + score_group(group)
+      acc + score_group(group, board)
     end)
   end
 
@@ -115,11 +115,23 @@ defmodule Wordgo.Game.Board do
   end
 
   def score_group(group) do
-    # Calculate score for this group (size² because each piece is worth the group size)
-
-    # See Wordgo.WordToVec.GetScore
+    # Calculate base score for this group
     group_size = length(group)
     group_size * GetScore.score_group(group |> Enum.map(& &1.word))
+  end
+
+  def score_group(group, %__MODULE__{} = board) do
+    base = score_group(group)
+    multiplier = group_bonus_multiplier(group, board)
+    base * multiplier
+  end
+
+  defp group_bonus_multiplier(group, %__MODULE__{} = board) do
+    bonus_map = Map.new(board.bonus, fn b -> {{b.x, b.y}, b.value} end)
+
+    Enum.reduce(group, 1, fn piece, acc ->
+      acc * Map.get(bonus_map, {piece.x, piece.y}, 1)
+    end)
   end
 
   # === Adjacency and position helpers (for AI heuristics) ===

@@ -170,7 +170,7 @@ defmodule Wordgo.Game do
     # Calculate score for each group
     group_scores =
       Enum.map(groups, fn group ->
-        score = Board.score_group(group)
+        score = Board.score_group(group, board)
 
         {group, score}
       end)

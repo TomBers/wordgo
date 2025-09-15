@@ -227,6 +227,10 @@ defmodule WordgoWeb.GameLive do
     score
   end
 
+  def get_bonus(board, x, y) do
+    Enum.find(board.bonus, %{symbol: "+"}, fn p -> p.x == x && p.y == y end)
+  end
+
   # == Multiplayer Message Handlers (Delegated) ==
 
   @impl true

@@ -12,7 +12,7 @@ defmodule Wordgo.Game do
   Returns a Board struct.
   """
   def create_empty_board(size) do
-    Board.new(size)
+    Board.new(size) |> Board.add_bonus(6)
   end
 
   @doc """

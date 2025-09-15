@@ -38,7 +38,9 @@
                     <%= if piece do %>
                       {String.slice(piece.word, 0, 1)}
                     <% else %>
-                      <span class="text-gray-300 dark:text-gray-500">·</span>
+                      <span class="text-gray-300 dark:text-gray-500">
+                        {get_bonus(@board, x, y).symbol}
+                      </span>
                     <% end %>
                   </button>
                 <% end %>

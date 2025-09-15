@@ -1,9 +1,19 @@
 defmodule Wordgo.Game.Board do
+  alias Wordgo.Game.Bonus
   alias Wordgo.WordToVec.GetScore
-  defstruct x_size: 9, y_size: 9, pieces: []
+  defstruct x_size: 9, y_size: 9, pieces: [], bonus: []
 
   def new(size \\ 9) do
-    %__MODULE__{x_size: size, y_size: size, pieces: []}
+    %__MODULE__{x_size: size, y_size: size, pieces: [], bonus: []}
+  end
+
+  def add_bonus(board, num \\ 2) do
+    range = 0..(board.x_size - 1)
+
+    bonus =
+      Enum.map(1..num, fn _ -> Bonus.gen_piece({Enum.random(range), Enum.random(range)}) end)
+
+    %{board | bonus: bonus ++ board.bonus}
   end
 
   def place_piece(board, piece) do

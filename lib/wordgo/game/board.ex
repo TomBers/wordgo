@@ -40,7 +40,6 @@ defmodule Wordgo.Game.Board do
         if MapSet.member?(visited_acc, {piece.x, piece.y}) do
           {groups_acc, visited_acc}
         else
-          IO.puts("Processing piece at (#{piece.x}, #{piece.y})")
           # Find all connected pieces starting from this piece
           {group, new_visited} = find_connected_group(piece, pieces_by_coords, visited_acc)
 
@@ -99,18 +98,13 @@ defmodule Wordgo.Game.Board do
         end
       end)
 
-    IO.puts(
-      "Connected pieces for #{piece.word} at #{inspect(coords)}: #{length(connected_pieces)}"
-    )
-
     # Return this piece plus all connected pieces
     {[piece | connected_pieces], updated_visited}
   end
 
   def score_group(group) do
     # Calculate score for this group (size² because each piece is worth the group size)
-    IO.inspect(group, label: "Group")
-    # TODO: Calculate the word similarity of the group
+
     # See Wordgo.WordToVec.GetScore
     group_size = length(group)
     group_size * GetScore.score_group(group |> Enum.map(& &1.word))

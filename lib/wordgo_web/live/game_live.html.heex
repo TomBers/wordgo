@@ -1,23 +1,21 @@
 <Layouts.app flash={@flash} current_scope={@current_scope}>
-  <div class="container mx-auto px-4 py-2">
-    <h1 class="text-2xl font-bold mb-2">Word Game</h1>
-
-    <div class="flex flex-col md:flex-row md:space-x-4">
+  <div class="mx-auto px-4 py-2">
+    <div class="flex flex-col sm:flex-row gap-4 items-start">
       <!-- Left Column: Game Board and Word Placement -->
-      <div class="md:w-2/3">
+      <div class="flex-1 min-w-0">
         <!-- Game board -->
         <div class="mb-3">
-          <h2 class="text-lg font-semibold mb-1">Game Board</h2>
-
           <div class="flex flex-col items-start">
             <div class="mb-1 text-xs"></div>
 
-            <div style={"display: grid; grid-template-columns: repeat(#{@board_size}, 1fr); gap: 4px;"}>
+            <div
+              class="grid gap-2 w-full"
+              style={"grid-template-columns: repeat(#{@board_size}, minmax(0, 1fr)); width: min(100%, 90vh);"}
+            >
               <%= for y <- 0..(@board_size-1) do %>
                 <%= for x <- 0..(@board_size-1) do %>
                   <% piece = Enum.find(@board.pieces, fn p -> p.x == x && p.y == y end) %>
 
-                  <% # Find which group this piece belongs to and get its color %>
                   <% bg_color =
                     cond do
                       @selected_position == {x, y} ->
@@ -35,7 +33,7 @@
                     phx-value-x={x}
                     phx-value-y={y}
                     title={if piece, do: piece.word}
-                    class={"w-10 h-10 flex items-center justify-center font-medium rounded #{bg_color} #{if @selected_position == {x, y}, do: "ring-2 ring-blue-500", else: ""} transition-colors duration-150 hover:brightness-90 dark:hover:brightness-110 hover:shadow-sm"}
+                    class={"w-full aspect-square flex items-center justify-center font-medium rounded #{bg_color} #{if @selected_position == {x, y}, do: "ring-2 ring-blue-500", else: ""} transition-colors duration-150 hover:brightness-90 dark:hover:brightness-110 hover:shadow-sm"}
                   >
                     <%= if piece do %>
                       {String.slice(piece.word, 0, 1)}
@@ -48,73 +46,20 @@
             </div>
           </div>
         </div>
-        
-<!-- Word placement form -->
-        <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-lg shadow mb-3">
-          <h2 class="text-lg font-semibold mb-1">Place a Word</h2>
-          <p class="text-xs text-gray-700 dark:text-gray-300 mb-1">
-            Choose a position on the board and enter a word that relates to your previously placed words for higher scores.
-          </p>
 
-          <%= if @error_message do %>
-            <div class="bg-red-100 dark:bg-red-900/50 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-2 py-1 rounded mb-2 text-sm">
-              {@error_message}
-            </div>
-          <% end %>
-
-          <form phx-submit="place-word" id="word-form">
-            <div class="mb-2">
-              <label for="word" class="block mb-1 text-sm dark:text-gray-200">Word</label>
-              <input
-                type="text"
-                id="word"
-                name="word"
-                value={@current_word}
-                placeholder="Enter a word"
-                required
-                class="w-full p-1 border rounded text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-            </div>
-
-            <div>
-              <button
-                type="submit"
-                id="place-word-btn"
-                disabled={@selected_position == nil}
-                class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors duration-150"
-              >
-                Place Word
-              </button>
-            </div>
-          </form>
-
-          <%= if @selected_position do %>
-            <p class="mt-1 text-xs dark:text-gray-300">
-              Selected position: {elem(@selected_position, 0)}, {elem(@selected_position, 1)}
-            </p>
-          <% else %>
-            <p class="mt-1 text-xs dark:text-gray-300">
-              Select a position on the board to place your word
-            </p>
-          <% end %>
-        </div>
-        
-<!-- Reset button -->
-        <div>
+        <div class="mt-2">
           <button
             phx-click="reset-game"
             id="reset-game-btn"
-            class="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 transition-colors duration-150"
+            class="text-xs text-red-500/80 hover:text-red-600 underline underline-offset-2"
           >
-            Reset Game
+            Reset game
           </button>
         </div>
       </div>
-      
-<!-- Right Column: Player Info and Instructions -->
-      <div class="md:w-1/3 mt-3 md:mt-0">
-        <!-- Player info -->
-        <div class="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg shadow mb-3">
+
+      <div class="w-full sm:w-64 lg:w-72 shrink-0 mt-3 sm:mt-0">
+        <div class="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg shadow mb-3 relative">
           <h2 class="text-lg font-semibold mb-1">Player: {@current_player.name}</h2>
           <div class="flex items-center justify-between mb-1">
             <p>
@@ -189,6 +134,47 @@
           <% end %>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div :if={@show_place_modal} class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/50" phx-click="close-place-modal" />
+    <div class="relative bg-base-100 text-base-content rounded-box shadow-xl w-[90vw] max-w-md p-4">
+      <h2 class="text-lg font-semibold mb-1">Place a Word</h2>
+      <p class="text-xs text-base-content/70 mb-2">
+        Choose a word for the selected position.
+      </p>
+      <%= if @error_message do %>
+        <div class="bg-red-100 dark:bg-red-900/50 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-2 py-1 rounded mb-2 text-sm">
+          {@error_message}
+        </div>
+      <% end %>
+      <form phx-submit="place-word" id="word-form-modal">
+        <div class="mb-2">
+          <label for="word" class="block mb-1 text-sm">Word</label>
+          <input
+            type="text"
+            id="word"
+            name="word"
+            value={@current_word}
+            placeholder="Enter a word"
+            required
+            class="w-full p-2 border rounded text-sm"
+            phx-hook="AutoFocusSelect"
+          />
+        </div>
+        <div class="flex items-center justify-end gap-2 mt-2">
+          <button type="button" phx-click="close-place-modal" class="btn btn-ghost btn-sm">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary btn-sm">Place Word</button>
+        </div>
+      </form>
+      <p class="mt-2 text-xs">
+        Selected: {if @selected_position,
+          do: "#{elem(@selected_position, 0)}, #{elem(@selected_position, 1)}",
+          else: "none"}
+      </p>
     </div>
   </div>
 </Layouts.app>

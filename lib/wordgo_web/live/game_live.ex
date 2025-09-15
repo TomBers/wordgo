@@ -19,8 +19,8 @@ defmodule WordgoWeb.GameLive do
   def mount(params, _session, socket) do
     game_assigns = Initialize.initialize_game_session(params, @board_size)
 
-    # Apply all assigns to socket, ignoring flash messages which are handled separately
     socket = assign(socket, Map.drop(game_assigns, [:flash]))
+    socket = assign(socket, :show_place_modal, false)
 
     if connected?(socket) do
       messages_to_send = Initialize.handle_connected_initialization(socket.assigns)
@@ -41,7 +41,11 @@ defmodule WordgoWeb.GameLive do
     if Enum.any?(board.pieces, &(&1.x == x && &1.y == y)) do
       {:noreply, assign(socket, :error_message, "That position is already occupied")}
     else
-      {:noreply, assign(socket, :selected_position, {x, y})}
+      {:noreply,
+       socket
+       |> assign(:selected_position, {x, y})
+       |> assign(:show_place_modal, true)
+       |> assign(:error_message, nil)}
     end
   end
 
@@ -92,6 +96,7 @@ defmodule WordgoWeb.GameLive do
                     |> assign(:current_word, "")
                     |> assign(:error_message, nil)
                     |> assign(:current_turn, next_turn)
+                    |> assign(:show_place_modal, false)
 
                   if socket.assigns[:ai_enabled] && next_turn == "AI" do
                     Process.send_after(self(), :ai_move, 1000)
@@ -128,6 +133,7 @@ defmodule WordgoWeb.GameLive do
       |> assign(:current_word, "")
       |> assign(:error_message, nil)
       |> assign(:current_turn, next_turn)
+      |> assign(:show_place_modal, false)
 
     {:noreply, socket}
   end
@@ -135,6 +141,15 @@ defmodule WordgoWeb.GameLive do
   @impl true
   def handle_event("update-word", %{"word" => word}, socket) do
     {:noreply, assign(socket, :current_word, word)}
+  end
+
+  def handle_event("close-place-modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_place_modal, false)
+     |> assign(:error_message, nil)
+     |> assign(:current_word, "")
+     |> assign(:selected_position, nil)}
   end
 
   @impl true

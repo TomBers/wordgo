@@ -187,7 +187,7 @@ defmodule Wordgo.WordToVec.Vocabulary do
     words = Enum.map(words, &normalize_word/1)
 
     # Split into cached vs missing
-    {cached_pairs, missing_words} =
+    {_cached_pairs, missing_words} =
       Enum.reduce(words, {[], []}, fn w, {cached, missing} ->
         case :ets.lookup(@table, {:emb, w}) do
           [{{:emb, ^w}, emb}] -> {[{w, emb} | cached], missing}
@@ -230,7 +230,7 @@ defmodule Wordgo.WordToVec.Vocabulary do
 
         :ok
 
-      _tid when is_reference(_tid) ->
+      _ ->
         :ok
     end
   end

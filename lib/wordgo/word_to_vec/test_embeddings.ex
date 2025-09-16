@@ -49,7 +49,6 @@ defmodule Wordgo.WordToVec.TestEmbeddings do
   """
   def test_embedding(word) do
     embedding = GetScore.get_embedding([word])
-    shape = Nx.shape(List.first(embedding))
 
     embedding
   end

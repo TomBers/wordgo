@@ -70,8 +70,8 @@ defmodule Wordgo.Game.Initialize do
   """
   def handle_connected_initialization(assigns, pubsub_module \\ Wordgo.PubSub) do
     topic = assigns.topic
-    current_player_name = assigns.current_player.name
-    ai_enabled = assigns.ai_enabled
+    # current_player_name = assigns.current_player.name
+    # ai_enabled = assigns.ai_enabled
 
     # Subscribe to game topic
     PubSub.subscribe(pubsub_module, topic)

@@ -11,8 +11,8 @@ defmodule Wordgo.Game do
 
   Returns a Board struct.
   """
-  def create_empty_board(size) do
-    Board.new(size)
+  def create_empty_board(size, num_bonus \\ 0) do
+    Board.new(size) |> Board.add_bonus(num_bonus)
   end
 
   @doc """
@@ -170,7 +170,7 @@ defmodule Wordgo.Game do
     # Calculate score for each group
     group_scores =
       Enum.map(groups, fn group ->
-        score = Board.score_group(group)
+        score = Board.score_group(group, board)
 
         {group, score}
       end)

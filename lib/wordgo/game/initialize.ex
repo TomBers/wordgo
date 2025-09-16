@@ -17,13 +17,15 @@ defmodule Wordgo.Game.Initialize do
   ## Returns
   Map of assigns ready to be applied to a LiveView socket
   """
-  def initialize_game_session(params, board_size) do
+  def initialize_game_session(params) do
     game_id = params["game_id"] || "lobby"
+    board_size = String.to_integer(params["board_size"] || "6")
+    bonus = String.to_integer(params["bonus"] || "0")
     player_name = normalize_player_name(params["player"])
     ai_config = extract_ai_config(params)
 
     # Create core game components
-    empty_board = Game.create_empty_board(board_size)
+    empty_board = Game.create_empty_board(board_size, bonus)
     current_player = Game.create_player(player_name, player_name)
     player_colors = build_player_colors(current_player, ai_config.enabled)
 
@@ -69,8 +71,8 @@ defmodule Wordgo.Game.Initialize do
   """
   def handle_connected_initialization(assigns, pubsub_module \\ Wordgo.PubSub) do
     topic = assigns.topic
-    current_player_name = assigns.current_player.name
-    ai_enabled = assigns.ai_enabled
+    # current_player_name = assigns.current_player.name
+    # ai_enabled = assigns.ai_enabled
 
     # Subscribe to game topic
     PubSub.subscribe(pubsub_module, topic)

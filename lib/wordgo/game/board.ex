@@ -1,9 +1,21 @@
 defmodule Wordgo.Game.Board do
+  alias Wordgo.Game.Bonus
   alias Wordgo.WordToVec.GetScore
-  defstruct x_size: 9, y_size: 9, pieces: []
+  defstruct x_size: 9, y_size: 9, pieces: [], bonus: []
 
   def new(size \\ 9) do
-    %__MODULE__{x_size: size, y_size: size, pieces: []}
+    %__MODULE__{x_size: size, y_size: size, pieces: [], bonus: []}
+  end
+
+  def add_bonus(board, num_bonus) do
+    range = 0..(board.x_size - 1)
+    # Generate all possible coordinates
+    all_coords = for x <- range, y <- range, do: {x, y}
+    available_coords = all_coords
+    # Shuffle and take up to num unique, unoccupied coordinates
+    selected_coords = available_coords |> Enum.shuffle() |> Enum.take(num_bonus)
+    bonus = Enum.map(selected_coords, fn coord -> Bonus.gen_piece(coord) end)
+    %{board | bonus: bonus ++ board.bonus}
   end
 
   def place_piece(board, piece) do
@@ -22,7 +34,7 @@ defmodule Wordgo.Game.Board do
 
     Enum.zip(
       Enum.map(player_pieces, &List.first(&1).player),
-      Enum.map(player_pieces, &score_pieces(&1))
+      Enum.map(player_pieces, &score_pieces(&1, board))
     )
   end
 
@@ -53,13 +65,13 @@ defmodule Wordgo.Game.Board do
     groups
   end
 
-  defp score_pieces(pieces) do
+  defp score_pieces(pieces, board) do
     # Get all connected groups
     groups = get_groups(pieces)
 
-    # Calculate and sum up scores for all groups
+    # Calculate and sum up scores for all groups with bonus multipliers
     Enum.reduce(groups, 0, fn group, acc ->
-      acc + score_group(group)
+      acc + score_group(group, board)
     end)
   end
 
@@ -103,11 +115,23 @@ defmodule Wordgo.Game.Board do
   end
 
   def score_group(group) do
-    # Calculate score for this group (size² because each piece is worth the group size)
-
-    # See Wordgo.WordToVec.GetScore
+    # Calculate base score for this group
     group_size = length(group)
     group_size * GetScore.score_group(group |> Enum.map(& &1.word))
+  end
+
+  def score_group(group, %__MODULE__{} = board) do
+    base = score_group(group)
+    multiplier = group_bonus_multiplier(group, board)
+    base * multiplier
+  end
+
+  defp group_bonus_multiplier(group, %__MODULE__{} = board) do
+    bonus_map = Map.new(board.bonus, fn b -> {{b.x, b.y}, b.value} end)
+
+    Enum.reduce(group, 1, fn piece, acc ->
+      acc * Map.get(bonus_map, {piece.x, piece.y}, 1)
+    end)
   end
 
   # === Adjacency and position helpers (for AI heuristics) ===

@@ -10,14 +10,11 @@ defmodule WordgoWeb.GameLive do
 
   require Logger
 
-  # Define the initial state for the game
-  @board_size 6
-
   # == Lifecycle ==
 
   @impl true
   def mount(params, _session, socket) do
-    game_assigns = Initialize.initialize_game_session(params, @board_size)
+    game_assigns = Initialize.initialize_game_session(params)
 
     socket = assign(socket, Map.drop(game_assigns, [:flash]))
     socket = assign(socket, :show_place_modal, false)
@@ -114,7 +111,7 @@ defmodule WordgoWeb.GameLive do
 
   @impl true
   def handle_event("reset-game", _params, socket) do
-    empty_board = Game.create_empty_board(@board_size)
+    empty_board = Game.create_empty_board(socket.assigns.board_size)
     players = socket.assigns.players || [socket.assigns.current_player.name]
     next_turn = List.first(players)
 
@@ -212,6 +209,13 @@ defmodule WordgoWeb.GameLive do
     end
   end
 
+  # == Multiplayer Message Handlers (Delegated) ==
+  @impl true
+  def handle_info(message, socket) do
+    # Delegate all other messages to the Multiplayer module
+    Multiplayer.handle_info(message, socket)
+  end
+
   @doc """
   Rounds a score to two decimal places.
   """
@@ -227,11 +231,7 @@ defmodule WordgoWeb.GameLive do
     score
   end
 
-  # == Multiplayer Message Handlers (Delegated) ==
-
-  @impl true
-  def handle_info(message, socket) do
-    # Delegate all other messages to the Multiplayer module
-    Multiplayer.handle_info(message, socket)
+  def get_bonus(board, x, y) do
+    Enum.find(board.bonus, %{symbol: "+"}, fn p -> p.x == x && p.y == y end)
   end
 end

@@ -33,6 +33,14 @@ kill_signal = 'SIGTERM'
     hard_limit = 1000
     soft_limit = 1000
 
+  [[http_service.checks]]
+    type = "http"
+    method = "GET"
+    path = "/health/readyz"
+    interval = "5s"
+    timeout = "2s"
+    grace_period = "60s"
+
 [[vm]]
   memory = '2gb'
   cpu_kind = 'shared'

@@ -14,11 +14,21 @@ defmodule WordgoWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :health do
+    plug :accepts, ["text"]
+  end
+
   scope "/", WordgoWeb do
     pipe_through :browser
 
     get "/", PageController, :home
     live "/:game_id", GameLive, :index
+  end
+
+  scope "/health", WordgoWeb do
+    pipe_through :health
+
+    get "/readyz", ReadyController, :ready
   end
 
   # Other scopes may use custom stacks.

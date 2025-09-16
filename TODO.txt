@@ -8,6 +8,10 @@ http://localhost:4000/?game_id=room1&player=Alice&ai=true&ai_difficulty=hard
 
 http://localhost:4000/?game_id=room1&player=Alice&ai=true
 
+http://localhost:4000/?game_id=room1&player=Alice&ai=true&bonus=4
+
+http://localhost:4000/?game_id=room1&player=Alice&ai=true&ai_difficulty=hard&bonus=20&board_size=12
+
   # Start with some test pieces
     # {:ok, board_with_one_piece} =
     #   Game.place_word(

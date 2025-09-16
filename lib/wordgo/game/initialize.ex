@@ -19,11 +19,12 @@ defmodule Wordgo.Game.Initialize do
   """
   def initialize_game_session(params, board_size) do
     game_id = params["game_id"] || "lobby"
+    bonus = String.to_integer(params["bonus"] || "0")
     player_name = normalize_player_name(params["player"])
     ai_config = extract_ai_config(params)
 
     # Create core game components
-    empty_board = Game.create_empty_board(board_size)
+    empty_board = Game.create_empty_board(board_size, bonus)
     current_player = Game.create_player(player_name, player_name)
     player_colors = build_player_colors(current_player, ai_config.enabled)
 

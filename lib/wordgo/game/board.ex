@@ -7,13 +7,13 @@ defmodule Wordgo.Game.Board do
     %__MODULE__{x_size: size, y_size: size, pieces: [], bonus: []}
   end
 
-  def add_bonus(board, num \\ 2) do
+  def add_bonus(board, num_bonus) do
     range = 0..(board.x_size - 1)
     # Generate all possible coordinates
     all_coords = for x <- range, y <- range, do: {x, y}
     available_coords = all_coords
     # Shuffle and take up to num unique, unoccupied coordinates
-    selected_coords = available_coords |> Enum.shuffle() |> Enum.take(num)
+    selected_coords = available_coords |> Enum.shuffle() |> Enum.take(num_bonus)
     bonus = Enum.map(selected_coords, fn coord -> Bonus.gen_piece(coord) end)
     %{board | bonus: bonus ++ board.bonus}
   end

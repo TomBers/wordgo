@@ -17,8 +17,9 @@ defmodule Wordgo.Game.Initialize do
   ## Returns
   Map of assigns ready to be applied to a LiveView socket
   """
-  def initialize_game_session(params, board_size) do
+  def initialize_game_session(params) do
     game_id = params["game_id"] || "lobby"
+    board_size = String.to_integer(params["board_size"] || "6")
     bonus = String.to_integer(params["bonus"] || "0")
     player_name = normalize_player_name(params["player"])
     ai_config = extract_ai_config(params)

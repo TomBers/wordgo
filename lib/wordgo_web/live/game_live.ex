@@ -14,8 +14,7 @@ defmodule WordgoWeb.GameLive do
 
   @impl true
   def mount(params, _session, socket) do
-    board_size = String.to_integer(params["board_size"] || "6")
-    game_assigns = Initialize.initialize_game_session(params, board_size)
+    game_assigns = Initialize.initialize_game_session(params)
 
     socket = assign(socket, Map.drop(game_assigns, [:flash]))
     socket = assign(socket, :show_place_modal, false)

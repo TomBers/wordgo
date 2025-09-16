@@ -17,8 +17,8 @@ defmodule WordgoWeb.Router do
   scope "/", WordgoWeb do
     pipe_through :browser
 
-    # get "/", PageController, :home
-    live "/", GameLive, :index
+    get "/", PageController, :home
+    live "/:game_id", GameLive, :index
   end
 
   # Other scopes may use custom stacks.

@@ -18,8 +18,8 @@ defmodule Wordgo.Application do
       {Nx.Serving,
        serving: Wordgo.WordToVec.Embeddings.serving(),
        name: Wordgo.Embeddings,
-       batch_size: 4,
-       batch_timeout: 10},
+       batch_size: 16,
+       batch_timeout: 50},
       # Start to serve requests, typically the last entry
       WordgoWeb.Endpoint
     ]

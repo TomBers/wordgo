@@ -24,6 +24,12 @@ defmodule Wordgo.Game.Initialize do
     player_name = normalize_player_name(params["player"])
     ai_config = extract_ai_config(params)
 
+    # Hybrid win conditions: score limit and time limit
+    score_limit = String.to_integer(params["score_limit"] || "100")
+    game_duration_ms = String.to_integer(params["game_duration_ms"] || "300000")
+    game_started_at = DateTime.utc_now()
+    game_end_at = DateTime.add(game_started_at, game_duration_ms, :millisecond)
+
     # Create core game components
     empty_board = Game.create_empty_board(board_size, bonus)
     current_player = Game.create_player(player_name, player_name)
@@ -54,6 +60,14 @@ defmodule Wordgo.Game.Initialize do
       current_turn: current_player.name,
       ai_enabled: ai_config.enabled,
       ai_difficulty: ai_config.difficulty,
+      # Hybrid win condition fields
+      score_limit: score_limit,
+      game_duration_ms: game_duration_ms,
+      game_started_at: game_started_at,
+      game_end_at: game_end_at,
+      game_over?: false,
+      winner: nil,
+      final_scores: nil,
       synced?: false
     }
   end
@@ -76,6 +90,19 @@ defmodule Wordgo.Game.Initialize do
 
     # Subscribe to game topic
     PubSub.subscribe(pubsub_module, topic)
+
+    # Schedule time-up based on shared game_end_at if present; otherwise use local default
+    remaining_ms =
+      case assigns[:game_end_at] do
+        %DateTime{} = ends_at ->
+          diff = DateTime.diff(ends_at, DateTime.utc_now(), :millisecond)
+          if diff > 0, do: diff, else: 0
+
+        _ ->
+          assigns[:game_duration_ms] || 300_000
+      end
+
+    Process.send_after(self(), :time_up, remaining_ms)
 
     # Return messages to send
     [:request_state, :update_groups]

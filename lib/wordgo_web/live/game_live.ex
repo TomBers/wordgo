@@ -4,6 +4,7 @@ defmodule WordgoWeb.GameLive do
   alias Wordgo.Game
   alias Wordgo.Game.Initialize
   alias Wordgo.Game.AI
+  alias Wordgo.Game.Board
   alias Phoenix.PubSub
   alias WordgoWeb.GameLive.Multiplayer
   alias WordgoWeb.GameLive.Helpers
@@ -19,9 +20,34 @@ defmodule WordgoWeb.GameLive do
     socket = assign(socket, Map.drop(game_assigns, [:flash]))
     socket = assign(socket, :show_place_modal, false)
 
+    # Hybrid win condition defaults if not already set
+    socket =
+      socket
+      |> assign_new(:score_limit, fn -> 100 end)
+      |> assign_new(:game_duration_ms, fn -> 300_000 end)
+      |> assign_new(:game_started_at, fn -> DateTime.utc_now() end)
+      |> assign_new(:game_end_at, fn ->
+        DateTime.add(DateTime.utc_now(), 300_000, :millisecond)
+      end)
+      |> assign_new(:game_over?, fn -> false end)
+      |> assign_new(:winner, fn -> nil end)
+      |> assign_new(:final_scores, fn -> nil end)
+
     if connected?(socket) do
       messages_to_send = Initialize.handle_connected_initialization(socket.assigns)
       Enum.each(messages_to_send, &send(self(), &1))
+
+      # Schedule time-up event
+      remaining_ms =
+        case socket.assigns[:game_end_at] do
+          %DateTime{} = ends_at ->
+            max(DateTime.diff(ends_at, DateTime.utc_now(), :millisecond), 0)
+
+          _ ->
+            socket.assigns[:game_duration_ms] || 300_000
+        end
+
+      Process.send_after(self(), :time_up, remaining_ms)
     end
 
     {:ok, socket}
@@ -35,14 +61,18 @@ defmodule WordgoWeb.GameLive do
     y = String.to_integer(y)
     board = socket.assigns.board
 
-    if Enum.any?(board.pieces, &(&1.x == x && &1.y == y)) do
-      {:noreply, assign(socket, :error_message, "That position is already occupied")}
+    if socket.assigns[:game_over?] do
+      {:noreply, assign(socket, :error_message, "Game over. Reset to play again.")}
     else
-      {:noreply,
-       socket
-       |> assign(:selected_position, {x, y})
-       |> assign(:show_place_modal, true)
-       |> assign(:error_message, nil)}
+      if Enum.any?(board.pieces, &(&1.x == x && &1.y == y)) do
+        {:noreply, assign(socket, :error_message, "That position is already occupied")}
+      else
+        {:noreply,
+         socket
+         |> assign(:selected_position, {x, y})
+         |> assign(:show_place_modal, true)
+         |> assign(:error_message, nil)}
+      end
     end
   end
 
@@ -52,6 +82,9 @@ defmodule WordgoWeb.GameLive do
     current_name = socket.assigns.current_player.name
 
     cond do
+      socket.assigns[:game_over?] ->
+        {:noreply, assign(socket, :error_message, "Game over. Reset to play again.")}
+
       socket.assigns.current_turn && socket.assigns.current_turn != current_name ->
         {:noreply, assign(socket, :error_message, "It's not your turn")}
 
@@ -95,7 +128,12 @@ defmodule WordgoWeb.GameLive do
                     |> assign(:current_turn, next_turn)
                     |> assign(:show_place_modal, false)
 
-                  if socket.assigns[:ai_enabled] && next_turn == "AI" do
+                  # Check score limit win condition
+                  socket =
+                    maybe_finalize_by_score(socket)
+
+                  if socket.assigns[:ai_enabled] && next_turn == "AI" &&
+                       not socket.assigns[:game_over?] do
                     Process.send_after(self(), :ai_move, 1000)
                   end
 
@@ -123,6 +161,11 @@ defmodule WordgoWeb.GameLive do
 
     send(self(), :update_groups)
 
+    # Reset state and timer
+    duration = socket.assigns[:game_duration_ms] || 300_000
+    started_at = DateTime.utc_now()
+    end_at = DateTime.add(started_at, duration, :millisecond)
+
     socket =
       socket
       |> assign(:board, empty_board)
@@ -131,6 +174,13 @@ defmodule WordgoWeb.GameLive do
       |> assign(:error_message, nil)
       |> assign(:current_turn, next_turn)
       |> assign(:show_place_modal, false)
+      |> assign(:game_over?, false)
+      |> assign(:winner, nil)
+      |> assign(:final_scores, nil)
+      |> assign(:game_started_at, started_at)
+      |> assign(:game_end_at, end_at)
+
+    Process.send_after(self(), :time_up, duration)
 
     {:noreply, socket}
   end
@@ -201,12 +251,65 @@ defmodule WordgoWeb.GameLive do
                }}
             )
 
+            updated_socket = maybe_finalize_by_score(updated_socket)
+
             {:noreply, updated_socket}
 
           {:error, _reason} ->
             {:noreply, socket}
         end
     end
+  end
+
+  # == Hybrid Win Conditions ==
+
+  @impl true
+  def handle_info(:time_up, socket) do
+    if socket.assigns[:game_over?] do
+      {:noreply, socket}
+    else
+      board = socket.assigns.board
+      final_scores = Board.score(board)
+
+      winner =
+        case final_scores do
+          [] ->
+            nil
+
+          scores ->
+            max_score = Enum.max_by(scores, fn {_p, s} -> s end) |> elem(1)
+            top = Enum.filter(scores, fn {_p, s} -> s == max_score end)
+
+            case top do
+              [{p, _}] -> p
+              _ -> nil
+            end
+        end
+
+      PubSub.broadcast(
+        Wordgo.PubSub,
+        socket.assigns.topic,
+        {:game_over, %{reason: :time_up, winner: winner, final_scores: final_scores}}
+      )
+
+      {:noreply,
+       socket
+       |> assign(:game_over?, true)
+       |> assign(:winner, winner)
+       |> assign(:final_scores, final_scores)}
+    end
+  end
+
+  @impl true
+  def handle_info(
+        {:game_over, %{reason: _reason, winner: winner, final_scores: final_scores}},
+        socket
+      ) do
+    {:noreply,
+     socket
+     |> assign(:game_over?, true)
+     |> assign(:winner, winner)
+     |> assign(:final_scores, final_scores)}
   end
 
   # == Multiplayer Message Handlers (Delegated) ==
@@ -229,6 +332,44 @@ defmodule WordgoWeb.GameLive do
 
   def round_score(score) do
     score
+  end
+
+  # == Helpers for win conditions ==
+  defp maybe_finalize_by_score(socket) do
+    limit = socket.assigns[:score_limit] || 100
+    board = socket.assigns.board
+
+    final_scores = Board.score(board)
+    {_, max_score} = Enum.max_by(final_scores, fn {_p, s} -> s end, fn -> {nil, 0} end)
+
+    if max_score >= limit do
+      winner =
+        case final_scores do
+          [] ->
+            nil
+
+          scores ->
+            top = Enum.filter(scores, fn {_p, s} -> s == max_score end)
+
+            case top do
+              [{p, _}] -> p
+              _ -> nil
+            end
+        end
+
+      PubSub.broadcast(
+        Wordgo.PubSub,
+        socket.assigns.topic,
+        {:game_over, %{reason: :score_limit, winner: winner, final_scores: final_scores}}
+      )
+
+      socket
+      |> assign(:game_over?, true)
+      |> assign(:winner, winner)
+      |> assign(:final_scores, final_scores)
+    else
+      socket
+    end
   end
 
   def get_bonus(board, x, y) do

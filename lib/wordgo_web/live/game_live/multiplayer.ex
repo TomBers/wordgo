@@ -136,4 +136,15 @@ defmodule WordgoWeb.GameLive.Multiplayer do
 
     {:noreply, socket}
   end
+
+  def handle_info(
+        {:game_over, %{reason: _reason, winner: winner, final_scores: final_scores}},
+        socket
+      ) do
+    {:noreply,
+     socket
+     |> assign(:game_over?, true)
+     |> assign(:winner, winner)
+     |> assign(:final_scores, final_scores)}
+  end
 end

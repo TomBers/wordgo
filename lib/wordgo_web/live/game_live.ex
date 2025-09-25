@@ -24,11 +24,9 @@ defmodule WordgoWeb.GameLive do
     socket =
       socket
       |> assign_new(:score_limit, fn -> 100 end)
-      |> assign_new(:game_duration_ms, fn -> 300_000 end)
-      |> assign_new(:game_started_at, fn -> DateTime.utc_now() end)
-      |> assign_new(:game_end_at, fn ->
-        DateTime.add(DateTime.utc_now(), 300_000, :millisecond)
-      end)
+      |> assign_new(:game_duration_ms, fn -> nil end)
+      |> assign_new(:game_started_at, fn -> nil end)
+      |> assign_new(:game_end_at, fn -> nil end)
       |> assign_new(:game_over?, fn -> false end)
       |> assign_new(:winner, fn -> nil end)
       |> assign_new(:final_scores, fn -> nil end)
@@ -37,17 +35,13 @@ defmodule WordgoWeb.GameLive do
       messages_to_send = Initialize.handle_connected_initialization(socket.assigns)
       Enum.each(messages_to_send, &send(self(), &1))
 
-      # Schedule time-up event
-      remaining_ms =
-        case socket.assigns[:game_end_at] do
-          %DateTime{} = ends_at ->
-            max(DateTime.diff(ends_at, DateTime.utc_now(), :millisecond), 0)
+      # Schedule time-up event only if a duration is configured
+      if match?(%DateTime{}, socket.assigns[:game_end_at]) do
+        remaining_ms =
+          max(DateTime.diff(socket.assigns.game_end_at, DateTime.utc_now(), :millisecond), 0)
 
-          _ ->
-            socket.assigns[:game_duration_ms] || 300_000
-        end
-
-      Process.send_after(self(), :time_up, remaining_ms)
+        Process.send_after(self(), :time_up, remaining_ms)
+      end
     end
 
     {:ok, socket}
@@ -162,9 +156,15 @@ defmodule WordgoWeb.GameLive do
     send(self(), :update_groups)
 
     # Reset state and timer
-    duration = socket.assigns[:game_duration_ms] || 300_000
-    started_at = DateTime.utc_now()
-    end_at = DateTime.add(started_at, duration, :millisecond)
+    duration = socket.assigns[:game_duration_ms]
+
+    {started_at, end_at} =
+      if is_integer(duration) and duration > 0 do
+        now = DateTime.utc_now()
+        {now, DateTime.add(now, duration, :millisecond)}
+      else
+        {nil, nil}
+      end
 
     socket =
       socket
@@ -180,7 +180,9 @@ defmodule WordgoWeb.GameLive do
       |> assign(:game_started_at, started_at)
       |> assign(:game_end_at, end_at)
 
-    Process.send_after(self(), :time_up, duration)
+    if match?(%DateTime{}, end_at) do
+      Process.send_after(self(), :time_up, duration)
+    end
 
     {:noreply, socket}
   end
@@ -265,38 +267,43 @@ defmodule WordgoWeb.GameLive do
 
   @impl true
   def handle_info(:time_up, socket) do
-    if socket.assigns[:game_over?] do
+    # Ignore time_up when timer is disabled/unlimited
+    if not match?(%DateTime{}, socket.assigns[:game_end_at]) do
       {:noreply, socket}
     else
-      board = socket.assigns.board
-      final_scores = Board.score(board)
+      if socket.assigns[:game_over?] do
+        {:noreply, socket}
+      else
+        board = socket.assigns.board
+        final_scores = Board.score(board)
 
-      winner =
-        case final_scores do
-          [] ->
-            nil
+        winner =
+          case final_scores do
+            [] ->
+              nil
 
-          scores ->
-            max_score = Enum.max_by(scores, fn {_p, s} -> s end) |> elem(1)
-            top = Enum.filter(scores, fn {_p, s} -> s == max_score end)
+            scores ->
+              max_score = Enum.max_by(scores, fn {_p, s} -> s end) |> elem(1)
+              top = Enum.filter(scores, fn {_p, s} -> s == max_score end)
 
-            case top do
-              [{p, _}] -> p
-              _ -> nil
-            end
-        end
+              case top do
+                [{p, _}] -> p
+                _ -> nil
+              end
+          end
 
-      PubSub.broadcast(
-        Wordgo.PubSub,
-        socket.assigns.topic,
-        {:game_over, %{reason: :time_up, winner: winner, final_scores: final_scores}}
-      )
+        PubSub.broadcast(
+          Wordgo.PubSub,
+          socket.assigns.topic,
+          {:game_over, %{reason: :time_up, winner: winner, final_scores: final_scores}}
+        )
 
-      {:noreply,
-       socket
-       |> assign(:game_over?, true)
-       |> assign(:winner, winner)
-       |> assign(:final_scores, final_scores)}
+        {:noreply,
+         socket
+         |> assign(:game_over?, true)
+         |> assign(:winner, winner)
+         |> assign(:final_scores, final_scores)}
+      end
     end
   end
 

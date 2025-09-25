@@ -87,19 +87,33 @@
           <div class="flex items-center justify-between mt-2">
             <div class="text-sm">
               <span class="font-medium">Time left:</span>
-              <span
-                id="countdown"
-                phx-hook="TimerCountdown"
-                data-ends-at={@game_end_at}
-                data-winner={@game_over? && @winner}
-                class={[
-                  "ml-1 px-2 py-0.5 rounded",
-                  @game_over? && "bg-gray-300 dark:bg-gray-700",
-                  !@game_over? && "bg-amber-200 dark:bg-amber-700 text-black"
-                ]}
-              >
-                --
-              </span>
+              <%= if @game_end_at do %>
+                <span
+                  id="countdown"
+                  phx-hook="TimerCountdown"
+                  data-ends-at={@game_end_at}
+                  data-winner={@game_over? && @winner}
+                  class={[
+                    "ml-1 px-2 py-0.5 rounded",
+                    @game_over? && "bg-gray-300 dark:bg-gray-700",
+                    !@game_over? && "bg-amber-200 dark:bg-amber-700 text-black"
+                  ]}
+                >
+                  --
+                </span>
+              <% else %>
+                <span class="ml-1 px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                  Unlimited
+                </span>
+                <%!-- Hidden hook to still trigger confetti on win when unlimited --%>
+                <span
+                  id="confetti-trigger"
+                  phx-hook="TimerCountdown"
+                  data-winner={@game_over? && @winner}
+                  class="hidden"
+                >
+                </span>
+              <% end %>
             </div>
             <div class="text-sm">
               <span class="font-medium">Target:</span>

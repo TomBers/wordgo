@@ -69,9 +69,13 @@ const hooks = {
       return `${pad(m)}:${pad(s)}`;
     },
     render(msLeft) {
-      const winner = this.el.dataset?.winner;
+      const winner = this.getWinner();
       if (winner) {
         this.el.textContent = `Winner: ${winner}`;
+        if (!this.hasCelebrated) {
+          this.hasCelebrated = true;
+          this.celebrate(winner);
+        }
         return;
       }
       if (msLeft <= 0) {
@@ -112,6 +116,45 @@ const hooks = {
     },
     destroyed() {
       this.stop();
+    },
+    getWinner() {
+      const v = this.el.dataset?.winner;
+      if (!v || v === "false" || v === "null" || v === "undefined") return null;
+      return v;
+    },
+    celebrate(winner) {
+      this.ensureConfetti().then((confetti) => {
+        if (!confetti) return;
+        // burst sequence
+        const duration = 1800;
+        const end = Date.now() + duration;
+        const colors = ["#a3e635", "#f59e0b", "#f472b6", "#60a5fa", "#34d399"];
+        const frame = () => {
+          confetti({
+            particleCount: 3,
+            startVelocity: 40,
+            spread: 70,
+            ticks: 200,
+            origin: { x: Math.random(), y: Math.random() - 0.2 },
+            colors,
+            shapes: ["square", "circle"],
+          });
+          if (Date.now() < end) requestAnimationFrame(frame);
+        };
+        frame();
+      });
+    },
+    ensureConfetti() {
+      if (window.confetti) return Promise.resolve(window.confetti);
+      return new Promise((resolve) => {
+        const script = document.createElement("script");
+        script.src =
+          "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js";
+        script.async = true;
+        script.onload = () => resolve(window.confetti || null);
+        script.onerror = () => resolve(null);
+        document.head.appendChild(script);
+      });
     },
   },
 };

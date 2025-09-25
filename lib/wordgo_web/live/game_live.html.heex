@@ -216,4 +216,23 @@
       </p>
     </div>
   </div>
+  <!-- Winner Modal -->
+  <input type="checkbox" id="winner-modal" class="modal-toggle" checked={@game_over?} />
+  <div class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg">Game Over</h3>
+      <p class="py-2">
+        <%= if @winner do %>
+          Winner: {@winner}
+        <% else %>
+          It's a tie!
+        <% end %>
+      </p>
+      <div class="modal-action">
+        <button phx-click="reset-game" class="btn btn-primary">Play again</button>
+        <label for="winner-modal" class="btn">Close</label>
+      </div>
+    </div>
+    <label class="modal-backdrop" for="winner-modal"></label>
+  </div>
 </Layouts.app>

@@ -262,6 +262,40 @@ defmodule Wordgo.WordToVec.Vocabulary do
 
   # A small default vocabulary. Replace at runtime with `set_vocabulary/1` or a file.
   defp default_vocabulary do
+    case load_priv_vocabulary() do
+      {:ok, words} ->
+        words
+
+      {:error, reason} ->
+        Logger.debug(
+          "Using fallback vocabulary (priv/vocabulary.txt not loaded): #{inspect(reason)}"
+        )
+
+        fallback_vocabulary()
+    end
+  end
+
+  defp load_priv_vocabulary do
+    path = Application.app_dir(:wordgo, "priv/vocabulary.txt")
+
+    if File.exists?(path) do
+      try do
+        path
+        |> File.read!()
+        |> String.split(~r/\R/u, trim: true)
+        |> Enum.map(&normalize_word/1)
+        |> Enum.reject(&(&1 == ""))
+        |> Enum.uniq()
+        |> then(&{:ok, &1})
+      rescue
+        e -> {:error, e}
+      end
+    else
+      {:error, :enoent}
+    end
+  end
+
+  defp fallback_vocabulary do
     ~w[
       cat kitten feline dog puppy canine animal pet lion tiger bear wolf fox deer horse sheep goat pig cow chicken duck goose eagle hawk owl shark whale dolphin octopus crab spider insect ant bee butterfly
       car automobile vehicle truck bus train plane boat bike bicycle scooter motorcycle subway tram rocket spaceship ferry yacht sailboat canoe kayak

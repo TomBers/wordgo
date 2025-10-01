@@ -189,9 +189,9 @@
   </div>
 
   <div :if={@show_place_modal} class="fixed inset-0 z-50 flex items-center justify-center">
-    <div class="absolute inset-0 bg-black/50" phx-click="close-place-modal" />
-    <div class="relative bg-base-100 text-base-content rounded-box shadow-xl w-[90vw] max-w-md p-4">
-      <h2 class="text-lg font-semibold mb-1">Place a Word</h2>
+    <div class="absolute inset-0 bg-black/60" phx-click="close-place-modal" />
+    <div class="relative bg-base-100 text-base-content rounded-box shadow-2xl w-[95vw] max-w-2xl p-6">
+      <h2 class="text-2xl font-bold mb-3">Place a Word</h2>
       <p class="text-xs text-base-content/70 mb-2">
         Choose a word for the selected position.
       </p>
@@ -202,7 +202,7 @@
       <% end %>
       <form phx-submit="place-word" id="word-form-modal">
         <div class="mb-2">
-          <label for="word" class="block mb-1 text-sm">Word</label>
+          <label for="word" class="block mb-2 text-base font-medium">Word</label>
           <input
             type="text"
             id="word"
@@ -210,7 +210,10 @@
             value={@current_word}
             placeholder="Enter a word"
             required
-            class="w-full p-2 border rounded text-sm"
+            class="w-full px-4 py-3 border-2 rounded-lg text-lg focus:outline-none focus:ring-4 focus:ring-blue-400/50 focus:border-blue-500 shadow-sm bg-white dark:bg-gray-800 placeholder-gray-400"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
             phx-hook="AutoFocusSelect"
           />
         </div>
@@ -218,14 +221,14 @@
           <button type="button" phx-click="close-place-modal" class="btn btn-ghost btn-sm">
             Cancel
           </button>
-          <button type="submit" class="btn btn-primary btn-sm" disabled={@game_over?}>
+          <button type="submit" class="btn btn-primary btn-lg" disabled={@game_over?}>
             Place Word
           </button>
         </div>
       </form>
       <p class="mt-2 text-xs">
         Selected: {if @selected_position,
-          do: "#{elem(@selected_position, 0)}, #{elem(@selected_position, 1)}",
+          do: "{#{elem(@selected_position, 0)}, #{elem(@selected_position, 1)}}",
           else: "none"}
       </p>
     </div>

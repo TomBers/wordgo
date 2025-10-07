@@ -64,4 +64,12 @@ config :phoenix, :json_library, Jason
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
+# Default embeddings configuration
+config :wordgo, :embeddings,
+  model: "BAAI/bge-small-en-v1.5",
+  batch_size: 16,
+  sequence_length: 16,
+  output_attribute: :hidden_state,
+  output_pool: :mean_pooling
+
 import_config "#{config_env()}.exs"

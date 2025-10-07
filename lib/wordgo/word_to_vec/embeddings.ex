@@ -13,12 +13,22 @@ defmodule Wordgo.WordToVec.Embeddings do
   This function is called by the application supervisor to start the serving.
   """
   def serving do
-    {:ok, model_info} = Bumblebee.load_model({:hf, "BAAI/bge-small-en-v1.5"})
-    {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "BAAI/bge-small-en-v1.5"})
+    opts = Application.get_env(:wordgo, :embeddings, [])
+
+    model = Keyword.get(opts, :model, "BAAI/bge-small-en-v1.5")
+    batch_size = Keyword.get(opts, :batch_size, 16)
+    sequence_length = Keyword.get(opts, :sequence_length, 16)
+    output_attribute = Keyword.get(opts, :output_attribute, :hidden_state)
+    output_pool = Keyword.get(opts, :output_pool, :mean_pooling)
+
+    {:ok, model_info} = Bumblebee.load_model({:hf, model})
+    {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, model})
 
     Bumblebee.Text.TextEmbedding.text_embedding(model_info, tokenizer,
-      compile: [batch_size: 16, sequence_length: 6],
+      compile: [batch_size: batch_size, sequence_length: sequence_length],
       defn_options: [compiler: EXLA],
+      output_attribute: output_attribute,
+      output_pool: output_pool,
       preallocate_params: true
     )
   end

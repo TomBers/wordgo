@@ -161,5 +161,17 @@
         </code>
       </div>
     </section>
+
+    <section class={["card p-6 border rounded-lg space-y-3"]}>
+      <h2 class={["text-lg font-medium"]}>Quick Play: Simple Mode</h2>
+      <p class={["text-sm opacity-80"]}>
+        Solo practice mode. Start from a random seed word and add related words. Keep the average similarity above the threshold or lose a life.
+      </p>
+      <div>
+        <.link navigate={~p"/simple"} class={["btn btn-primary"]} id="simple-mode-link">
+          Try Simple Mode
+        </.link>
+      </div>
+    </section>
   </section>
 </Layouts.app>

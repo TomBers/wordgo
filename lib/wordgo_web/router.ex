@@ -18,6 +18,8 @@ defmodule WordgoWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    live "/simple", SimpleModeLive, :index
+    live "/poker", PokerModeLive, :index
     live "/:game_id", GameLive, :index
   end
 

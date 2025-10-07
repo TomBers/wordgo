@@ -3,8 +3,8 @@ defmodule WordgoWeb.SimpleModeLive do
 
   alias Wordgo.WordToVec.{GetScore, Vocabulary}
 
-  @default_threshold 0.6
-  @default_lives 3
+  @default_threshold 0.75
+  @default_lives 2
 
   # === Lifecycle ===
 
@@ -205,18 +205,16 @@ defmodule WordgoWeb.SimpleModeLive do
           <div class="space-y-3">
             <div class="rounded-lg border p-4 bg-white dark:bg-gray-800">
               <p class="text-xs text-gray-500 dark:text-gray-400">Lives</p>
-              <div class="mt-1 flex items-center gap-1">
-                <%= for _ <- 1..@lives do %>
-                  <span class="text-red-500">❤</span>
-                <% end %>
-                <%= for _ <- 1..(@max_lives - @lives) do %>
-                  <span class="text-gray-300 dark:text-gray-600">❤</span>
-                <% end %>
-              </div>
 
               <%= if @game_over? do %>
                 <div class="mt-3 p-2 rounded bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-sm text-red-800 dark:text-red-200">
-                  Game Over — you ran out of lives.
+                  Game Over.
+                </div>
+              <% else %>
+                <div class="mt-1 flex items-center gap-1">
+                  <%= for _ <- 1..@lives do %>
+                    <span class="text-red-500">❤</span>
+                  <% end %>
                 </div>
               <% end %>
 

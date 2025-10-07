@@ -41,8 +41,17 @@ defmodule WordgoWeb.PokerModeLive do
 
   @impl true
   def handle_params(_params, _uri, socket) do
-    suggestions = build_suggestions(socket.assigns.base_words)
-    {:noreply, assign(socket, :suggestions, suggestions)}
+    {suggestions, candidates, candidate_embeddings, t1, t2} =
+      build_suggestions_ctx(socket.assigns.base_words)
+
+    {:noreply,
+     socket
+     |> assign(:suggestions, suggestions)
+     |> assign(:suggestion_candidates, candidates)
+     |> assign(:suggestion_embeddings, candidate_embeddings)
+     |> assign(:suggestion_target1, t1)
+     |> assign(:suggestion_target2, t2)
+     |> assign_new(:ai_thinking?, fn -> false end)}
   end
 
   # === Events ===
@@ -108,16 +117,23 @@ defmodule WordgoWeb.PokerModeLive do
   @impl true
   def handle_event("deal", _params, socket) do
     {base1, base2} = pick_base_words()
-    suggestions = build_suggestions([base1, base2])
+
+    {suggestions, candidates, candidate_embeddings, t1, t2} =
+      build_suggestions_ctx([base1, base2])
 
     {:noreply,
      socket
      |> assign(:base_words, [base1, base2])
      |> assign(:suggestions, suggestions)
+     |> assign(:suggestion_candidates, candidates)
+     |> assign(:suggestion_embeddings, candidate_embeddings)
+     |> assign(:suggestion_target1, t1)
+     |> assign(:suggestion_target2, t2)
      |> assign(:selection, MapSet.new())
      |> assign(:error_message, nil)
      |> assign(:round_over?, false)
      |> assign(:result, nil)
+     |> assign(:ai_thinking?, false)
      |> assign(
        :manual_form,
        Phoenix.Component.to_form(%{"w1" => "", "w2" => "", "w3" => ""}, as: :hand)
@@ -126,13 +142,19 @@ defmodule WordgoWeb.PokerModeLive do
 
   @impl true
   def handle_event("regen_suggestions", _params, socket) do
-    suggestions = build_suggestions(socket.assigns.base_words)
+    {suggestions, candidates, candidate_embeddings, t1, t2} =
+      build_suggestions_ctx(socket.assigns.base_words)
 
     {:noreply,
      socket
      |> assign(:suggestions, suggestions)
+     |> assign(:suggestion_candidates, candidates)
+     |> assign(:suggestion_embeddings, candidate_embeddings)
+     |> assign(:suggestion_target1, t1)
+     |> assign(:suggestion_target2, t2)
      |> assign(:selection, MapSet.new())
-     |> assign(:error_message, nil)}
+     |> assign(:error_message, nil)
+     |> assign(:ai_thinking?, false)}
   end
 
   # === Rendering ===
@@ -281,7 +303,10 @@ defmodule WordgoWeb.PokerModeLive do
                 <.button
                   phx-click="submit_hand"
                   class="btn btn-primary"
-                  disabled={(@mode == :select && MapSet.size(@selection) != 3) || @round_over?}
+                  disabled={
+                    (@mode == :select && MapSet.size(@selection) != 3) || @round_over? ||
+                      @ai_thinking?
+                  }
                 >
                   Submit hand
                 </.button>
@@ -304,6 +329,12 @@ defmodule WordgoWeb.PokerModeLive do
                 </span>
               </div>
 
+              <%= if @ai_enabled and not @round_over? and @ai_thinking? do %>
+                <div class="mt-2 text-xs text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                  <.icon name="hero-arrow-path" class="size-4 motion-safe:animate-spin" />
+                  AI is thinking...
+                </div>
+              <% end %>
               <%= if @round_over? && @result do %>
                 <div class="mt-3 space-y-2">
                   <div>
@@ -376,6 +407,16 @@ defmodule WordgoWeb.PokerModeLive do
     """
   end
 
+  @impl true
+  def handle_info({:round_result, result}, socket) do
+    {:noreply,
+     socket
+     |> assign(:round_over?, true)
+     |> assign(:result, result)
+     |> assign(:error_message, nil)
+     |> assign(:ai_thinking?, false)}
+  end
+
   # === Round submission helpers ===
 
   defp submit_from_selection(socket) do
@@ -383,7 +424,7 @@ defmodule WordgoWeb.PokerModeLive do
       {:noreply, assign(socket, :error_message, "Please select exactly 3 words")}
     else
       player_hand = Enum.to_list(socket.assigns.selection)
-      finalize_round(socket, player_hand)
+      start_round_resolution(socket, player_hand)
     end
   end
 
@@ -403,48 +444,8 @@ defmodule WordgoWeb.PokerModeLive do
         {:noreply, assign(socket, :error_message, "Words must be unique")}
 
       true ->
-        finalize_round(socket, words)
+        start_round_resolution(socket, words)
     end
-  end
-
-  defp finalize_round(socket, player_three) do
-    base = socket.assigns.base_words
-    player_five = base ++ player_three
-    player_score = compute_hand_score(player_five)
-
-    {ai_hand, ai_score} =
-      if socket.assigns.ai_enabled do
-        ai_three = ai_pick_words(base, socket.assigns.suggestions)
-        ai_five = base ++ ai_three
-        {ai_five, compute_hand_score(ai_five)}
-      else
-        {nil, nil}
-      end
-
-    winner =
-      if socket.assigns.ai_enabled do
-        cond do
-          player_score > ai_score -> :player
-          ai_score > player_score -> :ai
-          true -> :tie
-        end
-      else
-        :player
-      end
-
-    result = %{
-      player_hand: player_five,
-      player_score: player_score,
-      ai_hand: ai_hand || [],
-      ai_score: ai_score,
-      winner: winner
-    }
-
-    {:noreply,
-     socket
-     |> assign(:round_over?, true)
-     |> assign(:result, result)
-     |> assign(:error_message, nil)}
   end
 
   # === Internal helpers ===
@@ -467,14 +468,13 @@ defmodule WordgoWeb.PokerModeLive do
     end
   end
 
-  defp build_suggestions([base1, base2]) do
+  defp build_suggestions_ctx([base1, base2]) do
     candidates =
       Vocabulary.get_vocabulary()
       |> Enum.reject(&(&1 in [base1, base2]))
       |> Enum.shuffle()
       |> Enum.take(@suggestions_pool_size)
 
-    # Batch all candidate embeddings once to minimize Serving calls
     candidate_embeddings =
       try do
         Vocabulary.embeddings_for(candidates)
@@ -482,8 +482,8 @@ defmodule WordgoWeb.PokerModeLive do
         _ -> []
       end
 
-    target1 = GetScore.generate_target_embedding(base1, @ai_target_similarity)
-    target2 = GetScore.generate_target_embedding(base2, @ai_target_similarity)
+    t1 = GetScore.generate_target_embedding(base1, @ai_target_similarity)
+    t2 = GetScore.generate_target_embedding(base2, @ai_target_similarity)
 
     top_half = div(@suggestions_count, 2)
 
@@ -491,7 +491,7 @@ defmodule WordgoWeb.PokerModeLive do
       candidates
       |> Enum.zip(candidate_embeddings)
       |> Enum.map(fn {w, emb} ->
-        cos = if emb, do: Nx.to_number(GetScore.cosine_similarity(target1, emb)), else: 0.0
+        cos = if emb, do: Nx.to_number(GetScore.cosine_similarity(t1, emb)), else: 0.0
         c = min(max(cos, -1.0), 1.0)
         score = 1.0 - :math.acos(c) / :math.pi()
         {w, score}
@@ -504,7 +504,7 @@ defmodule WordgoWeb.PokerModeLive do
       candidates
       |> Enum.zip(candidate_embeddings)
       |> Enum.map(fn {w, emb} ->
-        cos = if emb, do: Nx.to_number(GetScore.cosine_similarity(target2, emb)), else: 0.0
+        cos = if emb, do: Nx.to_number(GetScore.cosine_similarity(t2, emb)), else: 0.0
         c = min(max(cos, -1.0), 1.0)
         score = 1.0 - :math.acos(c) / :math.pi()
         {w, score}
@@ -520,32 +520,98 @@ defmodule WordgoWeb.PokerModeLive do
     need = max(@suggestions_count - length(combined), 0)
     filler = candidates |> Enum.shuffle() |> Enum.take(need)
 
-    combined
-    |> Kernel.++(filler)
-    |> Enum.take(@suggestions_count)
+    suggestions =
+      combined
+      |> Kernel.++(filler)
+      |> Enum.take(@suggestions_count)
+
+    {suggestions, candidates, candidate_embeddings, t1, t2}
   end
 
-  defp safe_top_matches(query, s, candidates, opts) do
-    try do
-      Vocabulary.top_matches_for_desired_similarity(
-        query,
-        s,
-        Keyword.merge(opts, candidates: candidates)
-      )
-    rescue
-      _ -> []
+  defp build_suggestions([base1, base2]) do
+    {suggestions, _c, _e, _t1, _t2} = build_suggestions_ctx([base1, base2])
+    suggestions
+  end
+
+  defp start_round_resolution(socket, player_three) do
+    assigns = socket.assigns
+
+    parent = self()
+
+    Task.start(fn ->
+      result = compute_round_result(assigns, player_three)
+      send(parent, {:round_result, result})
+    end)
+
+    if assigns.ai_enabled do
+      {:noreply, assign(socket, :ai_thinking?, true)}
+    else
+      {:noreply, socket}
     end
   end
 
-  defp ai_pick_words([base1, base2], candidates) do
-    # Score candidates by average similarity to both bases; pick the top 3
+  defp compute_round_result(assigns, player_three) do
+    base = assigns.base_words
+    player_five = base ++ player_three
+    player_score = compute_hand_score(player_five)
+
+    if assigns.ai_enabled do
+      ai_three =
+        ai_pick_words(
+          base,
+          assigns.suggestions,
+          assigns.suggestion_embeddings,
+          assigns.suggestion_target1,
+          assigns.suggestion_target2
+        )
+
+      ai_five = base ++ ai_three
+      ai_score = compute_hand_score(ai_five)
+
+      winner =
+        cond do
+          player_score > ai_score -> :player
+          ai_score > player_score -> :ai
+          true -> :tie
+        end
+
+      %{
+        player_hand: player_five,
+        player_score: player_score,
+        ai_hand: ai_five,
+        ai_score: ai_score,
+        winner: winner
+      }
+    else
+      %{
+        player_hand: player_five,
+        player_score: player_score,
+        ai_hand: [],
+        ai_score: nil,
+        winner: :player
+      }
+    end
+  end
+
+  defp ai_pick_words([base1, base2], candidates, embeddings, t1, t2) do
+    # Prefer using precomputed embeddings/targets when available for speed
+    # Fallback to safe_similarity if context isn't present
     scores =
-      candidates
-      |> Enum.map(fn w ->
-        s1 = safe_similarity(base1, w)
-        s2 = safe_similarity(base2, w)
-        {w, (s1 + s2) / 2.0}
-      end)
+      if is_list(embeddings) and not is_nil(t1) and not is_nil(t2) do
+        Enum.zip(candidates, embeddings)
+        |> Enum.map(fn {w, emb} ->
+          s1 = if emb, do: Nx.to_number(GetScore.cosine_similarity(t1, emb)), else: 0.0
+          s2 = if emb, do: Nx.to_number(GetScore.cosine_similarity(t2, emb)), else: 0.0
+          {w, (s1 + s2) / 2.0}
+        end)
+      else
+        candidates
+        |> Enum.map(fn w ->
+          s1 = safe_similarity(base1, w)
+          s2 = safe_similarity(base2, w)
+          {w, (s1 + s2) / 2.0}
+        end)
+      end
       |> Enum.sort_by(fn {_w, score} -> score end, :desc)
 
     chosen =

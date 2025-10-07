@@ -119,6 +119,60 @@ defmodule Wordgo.WordToVec.GetScore do
   end
 
   @doc """
+  Computes a group score from precomputed embeddings.
+
+  Options:
+  - method: :centroid | :pairwise (default: :centroid)
+  - transform: see `transform_similarity/2` (default: :angular -> 0..1)
+  """
+  def score_group_from_embeddings(embeddings, opts \\ []) when is_list(embeddings) do
+    case embeddings do
+      [] ->
+        0.0
+
+      [_] ->
+        # Single embedding is maximally similar to its centroid
+        transform_similarity(1.0, opts)
+
+      list ->
+        case Keyword.get(opts, :method, :centroid) do
+          :pairwise ->
+            n = length(list)
+
+            {sum, count} =
+              list
+              |> Enum.with_index()
+              |> Enum.reduce({0.0, 0}, fn {e_i, i}, {acc, k} ->
+                inner_sum =
+                  Enum.drop(list, i + 1)
+                  |> Enum.reduce(0.0, fn e_j, s ->
+                    sim = Nx.to_number(cosine_similarity(e_i, e_j))
+                    s + transform_similarity(sim, opts)
+                  end)
+
+                {acc + inner_sum, k + (n - i - 1)}
+              end)
+
+            if count > 0, do: sum / count, else: 0.0
+
+          _ ->
+            # Normalize each embedding first to avoid magnitude bias
+            normed = Enum.map(list, &normalize/1)
+            # Compute and normalize centroid
+            centroid = normalize(Nx.mean(Nx.stack(normed), axes: [0]))
+
+            sims =
+              Enum.map(normed, fn e ->
+                Nx.to_number(cosine_similarity(centroid, e))
+              end)
+
+            mean = Enum.sum(sims) / length(sims)
+            transform_similarity(mean, opts)
+        end
+    end
+  end
+
+  @doc """
   Calculates the semantic similarity between two words using embeddings.
   Returns a float value between 0 and 1, where higher values indicate greater similarity.
   """
@@ -185,14 +239,20 @@ defmodule Wordgo.WordToVec.GetScore do
   end
 
   @doc """
-  Given a word and a desired cosine similarity value in [-1, 1], generate a new target embedding
-  vector which has that cosine similarity with the given word's embedding.
+  Generate a target embedding with a desired cosine similarity value in [-1, 1].
 
-  This returns the target embedding as an `Nx` tensor.
+  You can pass either:
+  - a word (binary), in which case the word's embedding is looked up first, or
+  - a precomputed base embedding (Nx tensor), to avoid an extra Serving call.
+
+  Returns an Nx tensor.
   """
   def generate_target_embedding(word, target_similarity) when is_binary(word) do
     [embedding] = get_embedding([word])
+    generate_target_embedding(embedding, target_similarity)
+  end
 
+  def generate_target_embedding(%Nx.Tensor{} = embedding, target_similarity) do
     a_hat = normalize(embedding)
     s = clamp_similarity(target_similarity)
 

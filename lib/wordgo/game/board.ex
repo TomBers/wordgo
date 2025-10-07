@@ -1,6 +1,7 @@
 defmodule Wordgo.Game.Board do
   alias Wordgo.Game.Bonus
   alias Wordgo.WordToVec.GetScore
+  alias Wordgo.WordToVec.Vocabulary
   defstruct x_size: 9, y_size: 9, pieces: [], bonus: []
 
   def new(size \\ 9) do
@@ -115,9 +116,11 @@ defmodule Wordgo.Game.Board do
   end
 
   def score_group(group) do
-    # Calculate base score for this group
+    # Calculate base score for this group using precomputed embeddings for efficiency
     group_size = length(group)
-    group_size * GetScore.score_group(group |> Enum.map(& &1.word))
+    words = Enum.map(group, & &1.word)
+    embeddings = Vocabulary.embeddings_for(words)
+    group_size * GetScore.score_group_from_embeddings(embeddings)
   end
 
   def score_group(group, %__MODULE__{} = board) do

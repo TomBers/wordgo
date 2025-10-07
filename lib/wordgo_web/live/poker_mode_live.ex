@@ -490,7 +490,9 @@ defmodule WordgoWeb.PokerModeLive do
       candidates
       |> Enum.zip(candidate_embeddings)
       |> Enum.map(fn {w, emb} ->
-        score = if emb, do: Nx.to_number(GetScore.cosine_similarity(target1, emb)), else: 0.0
+        cos = if emb, do: Nx.to_number(GetScore.cosine_similarity(target1, emb)), else: 0.0
+        c = min(max(cos, -1.0), 1.0)
+        score = 1.0 - :math.acos(c) / :math.pi()
         {w, score}
       end)
       |> Enum.sort_by(fn {_w, score} -> score end, :desc)
@@ -501,7 +503,9 @@ defmodule WordgoWeb.PokerModeLive do
       candidates
       |> Enum.zip(candidate_embeddings)
       |> Enum.map(fn {w, emb} ->
-        score = if emb, do: Nx.to_number(GetScore.cosine_similarity(target2, emb)), else: 0.0
+        cos = if emb, do: Nx.to_number(GetScore.cosine_similarity(target2, emb)), else: 0.0
+        c = min(max(cos, -1.0), 1.0)
+        score = 1.0 - :math.acos(c) / :math.pi()
         {w, score}
       end)
       |> Enum.sort_by(fn {_w, score} -> score end, :desc)
@@ -566,7 +570,9 @@ defmodule WordgoWeb.PokerModeLive do
 
   defp safe_similarity(a, b) do
     try do
-      GetScore.run(a, b)
+      cos = GetScore.run(a, b)
+      c = min(max(cos, -1.0), 1.0)
+      1.0 - :math.acos(c) / :math.pi()
     rescue
       _ -> 0.0
     end
@@ -574,9 +580,7 @@ defmodule WordgoWeb.PokerModeLive do
 
   defp compute_hand_score(words) do
     try do
-      sum = GetScore.score_group(words)
-      n = max(length(words), 1)
-      sum / n
+      GetScore.score_group_with_opts(words, transform: :angular)
     rescue
       _ -> 0.0
     end

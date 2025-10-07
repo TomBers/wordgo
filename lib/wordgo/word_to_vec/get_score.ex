@@ -10,6 +10,67 @@ defmodule Wordgo.WordToVec.GetScore do
     run("Bob", "Bill")
   end
 
+  # Applies optional transforms to raw cosine similarity to increase contrast.
+  # Supported transforms:
+  #   :none       -> return raw cosine
+  #   :angular    -> 1 - arccos(cos)/pi (spreads high-cosine region)
+  #   {:gamma, g} -> gamma curve on [0,1] region to pull apart high values
+  #   {:affine, {a,b}} -> linear transform a*cos + b
+  defp transform_similarity(cos, opts \\ []) when is_number(cos) do
+    case Keyword.get(opts, :transform, :none) do
+      :none ->
+        cos
+
+      :angular ->
+        c = min(max(cos, -1.0), 1.0)
+        1.0 - :math.acos(c) / :math.pi()
+
+      {:gamma, g} when is_number(g) and g > 0 ->
+        # Clamp to [0,1] before gamma so negatives don't explode
+        s = max(cos, 0.0)
+        :math.pow(s, g)
+
+      {:affine, {a, b}} when is_number(a) and is_number(b) ->
+        a * cos + b
+
+      _other ->
+        cos
+    end
+  end
+
+  # Computes the average of all pairwise similarities in the list.
+  # More sensitive to outliers than centroid-based similarity.
+  def pairwise_mean_similarity(words, opts \\ []) when is_list(words) do
+    case get_embedding(words) do
+      [] ->
+        0.0
+
+      embeddings ->
+        n = length(embeddings)
+
+        if n < 2 do
+          1.0
+        else
+          {sum, count} =
+            embeddings
+            |> Enum.with_index()
+            |> Enum.reduce({0.0, 0}, fn {e_i, i}, {acc, k} ->
+              inner_sum =
+                Enum.drop(embeddings, i + 1)
+                |> Enum.reduce(0.0, fn e_j, s ->
+                  sim = Nx.to_number(cosine_similarity(e_i, e_j))
+                  s + transform_similarity(sim, opts)
+                end)
+
+              {acc + inner_sum, k + (n - i - 1)}
+            end)
+
+          if count > 0, do: sum / count, else: 0.0
+        end
+    end
+  end
+
+  # Backwards-compatible centroid-based scorer (unchanged behavior).
   def score_group(group) do
     # Get embeddings for each word in the group
     embeddings = get_embedding(group)
@@ -31,6 +92,13 @@ defmodule Wordgo.WordToVec.GetScore do
 
     # Ensure that bigger groups lead to higher scores
     # |> Kernel./(length(similarities))
+  end
+
+  # New: Preferred, more discriminative group score using pairwise mean with optional transform.
+  # Suggested usage:
+  #   score_group_with_opts(words, transform: :angular)
+  def score_group_with_opts(group, opts \\ []) do
+    pairwise_mean_similarity(group, opts)
   end
 
   @doc """

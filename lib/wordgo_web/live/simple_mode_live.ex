@@ -279,8 +279,7 @@ defmodule WordgoWeb.SimpleModeLive do
 
   defp format_float(other), do: other
 
-  # Compute the average similarity of the list (0..1).
-  # Falls back to 0.0 on errors.
+  # Compute a more discriminative average similarity using pairwise mean + angular transform.
   defp compute_score(words) when is_list(words) do
     case words do
       [] ->
@@ -288,11 +287,7 @@ defmodule WordgoWeb.SimpleModeLive do
 
       list ->
         try do
-          # GetScore.score_group/1 returns the sum of cosine similarities of the average embedding to each word.
-          # Turn it into an average to keep the score in [0, 1] regardless of list length.
-          sum = GetScore.score_group(list)
-          n = max(length(list), 1)
-          sum / n
+          GetScore.score_group_with_opts(list, transform: :angular)
         rescue
           _ -> 0.0
         end

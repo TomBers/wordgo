@@ -47,6 +47,8 @@ defmodule Wordgo.Build do
     IO.puts("[build] Bumblebee: cache_dir=#{inspect(cache_dir)}")
     IO.puts("[build] Bumblebee: starting download...")
 
+    # Force Binary backend to avoid EXLA during build-time downloads
+    Nx.global_default_backend(Nx.BinaryBackend)
     # Trigger downloads into the cache
     {:ok, _model_info} = Bumblebee.load_model({:hf, model_id})
     {:ok, _tokenizer} = Bumblebee.load_tokenizer({:hf, model_id})

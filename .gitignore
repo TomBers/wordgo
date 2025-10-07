@@ -28,7 +28,7 @@ wordgo-*.tar
 
 # Ignore assets that are produced by build tools.
 /priv/static/assets/
-/priv/bumblebee-cache/huggingface/
+/priv/bumblebee-cache/
 # Ignore digested assets cache.
 /priv/static/cache_manifest.json
 

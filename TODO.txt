@@ -1,32 +1,16 @@
-1) Restructure game_live.ex to be more functional / easier to read
-2) Ensure that each word can only be used once, the AI is using the same word multiple times.
-3) Include word length in scoring (??)
+The basic mechanics of the existing WordGo game are to be modified into to more different game modes.
 
-Model cache: /Users/tomberman/Library/Caches/bumblebee/huggingface/BAAI--bge-small-en-v15
+(This means reuse much of the existing modules and functions to score collections of wods.
 
-http://localhost:4000/?game_id=room1&player=Alice&ai=true&ai_difficulty=hard
+New Game modes to be added.
 
-http://localhost:4000/?game_id=room1&player=Alice&ai=true
+Simple mode:
+ At the start of the game, a random word is selected, the user has a text input and must add words to a growing list.
+The similarity score of the emntire list is visible on screen.
+The player must keep the score above a certain threshold, if it dips below they lose a life.
 
-http://localhost:4000/?game_id=room1&player=Alice&ai=true&bonus=4
+Poker Mode:
 
-http://localhost:4000/?game_id=room1&player=Alice&ai=true&ai_difficulty=hard&bonus=20&board_size=12
+This is a mix of poker and word similarity.  Like a game of poker, the 2 words are selected at random.  The player can either select 3 words from a list, or enter 3 words.
 
-  # Start with some test pieces
-    # {:ok, board_with_one_piece} =
-    #   Game.place_word(
-    #     empty_board,
-    #     {1, 1},
-    #     "bob",
-    #     "Test Player"
-    #   )
-
-    # {:ok, board_with_two_pieces} =
-    #   Game.place_word(
-    #     board_with_one_piece,
-    #     {1, 2},
-    #     "bill",
-    #     "Test Player"
-    #   )
-
-    # -----------------------
+The winner is the player with the highest score.

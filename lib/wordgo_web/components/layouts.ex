@@ -44,6 +44,9 @@ defmodule WordgoWeb.Layouts do
       <div class="flex-none">
         <ul class="flex flex-column px-1 space-x-4 items-center">
           <li>
+            <.mode_picker />
+          </li>
+          <li>
             <.theme_toggle />
           </li>
         </ul>
@@ -99,6 +102,25 @@ defmodule WordgoWeb.Layouts do
         {gettext("Attempting to reconnect")}
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
+    </div>
+    """
+  end
+
+  @doc """
+  Provides a mode picker for navigating between game modes.
+  """
+  def mode_picker(assigns) do
+    ~H"""
+    <div class="dropdown dropdown-end">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+        <.icon name="hero-squares-2x2" class="size-4 mr-1" /> Modes
+        <.icon name="hero-chevron-down" class="size-4 ml-1" />
+      </div>
+      <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-44">
+        <li><.link navigate={~p"/"}>WordGo</.link></li>
+        <li><.link navigate={~p"/simple"}>Simple</.link></li>
+        <li><.link navigate={~p"/poker"}>Poker</.link></li>
+      </ul>
     </div>
     """
   end

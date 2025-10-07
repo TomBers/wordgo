@@ -34,6 +34,7 @@ RUN mix local.hex --force \
 
 # set build ENV
 ENV MIX_ENV="prod"
+ENV BUMBLEBEE_CACHE_DIR=/app/priv/bumblebee-cache
 
 # install mix dependencies
 COPY mix.exs mix.lock ./
@@ -54,6 +55,7 @@ COPY lib lib
 
 # Compile the release
 RUN mix compile
+RUN mix eval 'Wordgo.Build.load_bumblebee_cache()'
 
 COPY assets assets
 
@@ -92,7 +94,7 @@ ENV BUMBLEBEE_OFFLINE=true
 
 # Only copy the final release from the build stage
 COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/wordgo ./
-COPY --chown=nobody:root priv/bumblebee-cache /app/priv/bumblebee-cache
+COPY --from=builder --chown=nobody:root /app/priv/bumblebee-cache /app/priv/bumblebee-cache
 
 USER nobody
 

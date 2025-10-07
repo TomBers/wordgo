@@ -11,7 +11,8 @@ defmodule WordgoWeb.PokerModeLive do
 
   @impl true
   def mount(params, _session, socket) do
-    ai_enabled = params["ai"] in ["true", true, "1", 1, "on"]
+    # params["ai"] in ["true", true, "1", 1, "on"]
+    ai_enabled = true
 
     {base1, base2} = pick_base_words()
 

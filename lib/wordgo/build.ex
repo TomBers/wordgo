@@ -59,14 +59,12 @@ defmodule Wordgo.Build do
   end
 
   defp start_httpc_bumblebee! do
-    # Start the httpc manager with the :httpc_bumblebee profile if not already running
+    # Start and configure the httpc :bumblebee profile used by Bumblebee
     _ = Application.ensure_all_started(:inets)
 
-    case :inets.start(:httpc, profile: :httpc_bumblebee) do
-      {:error, {:already_started, _pid}} -> :ok
-      {:ok, _pid} -> :ok
-      other -> IO.puts("[build] Bumblebee: httpc profile start result=#{inspect(other)}")
-    end
+    # Start Bumblebee's httpc profile (handles proxy settings too)
+    # Note: must not be already started, so we delegate only to Bumblebee's API here.
+    Bumblebee.Utils.HTTP.start_inets_profile()
 
     # Provide CA certificates directly from Erlang's store to avoid OS CA dependency
     cacerts = :public_key.cacerts_get()
@@ -84,7 +82,7 @@ defmodule Wordgo.Build do
         timeout: 30000,
         connect_timeout: 30000
       ],
-      :httpc_bumblebee
+      :bumblebee
     )
 
     :ok

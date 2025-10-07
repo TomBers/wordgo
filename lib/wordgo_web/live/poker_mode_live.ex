@@ -4,6 +4,7 @@ defmodule WordgoWeb.PokerModeLive do
   alias Wordgo.WordToVec.{GetScore, Vocabulary}
 
   @suggestions_count 18
+  @suggestions_pool_size 300
   @ai_target_similarity 0.7
 
   # === Lifecycle ===
@@ -13,7 +14,6 @@ defmodule WordgoWeb.PokerModeLive do
     ai_enabled = params["ai"] in ["true", true, "1", 1, "on"]
 
     {base1, base2} = pick_base_words()
-    suggestions = build_suggestions([base1, base2])
 
     manual_form =
       Phoenix.Component.to_form(
@@ -26,7 +26,7 @@ defmodule WordgoWeb.PokerModeLive do
       |> assign(:current_scope, "poker")
       |> assign(:ai_enabled, ai_enabled)
       |> assign(:base_words, [base1, base2])
-      |> assign(:suggestions, suggestions)
+      |> assign(:suggestions, [])
       |> assign(:selection, MapSet.new())
       # :select | :manual
       |> assign(:mode, :select)
@@ -36,6 +36,12 @@ defmodule WordgoWeb.PokerModeLive do
       |> assign(:result, nil)
 
     {:ok, socket}
+  end
+
+  @impl true
+  def handle_params(_params, _uri, socket) do
+    suggestions = build_suggestions(socket.assigns.base_words)
+    {:noreply, assign(socket, :suggestions, suggestions)}
   end
 
   # === Events ===
@@ -461,23 +467,53 @@ defmodule WordgoWeb.PokerModeLive do
   end
 
   defp build_suggestions([base1, base2]) do
-    vocab =
+    candidates =
       Vocabulary.get_vocabulary()
       |> Enum.reject(&(&1 in [base1, base2]))
+      |> Enum.shuffle()
+      |> Enum.take(@suggestions_pool_size)
 
-    # Try to get words near each base word, then fill with randoms
+    # Batch all candidate embeddings once to minimize Serving calls
+    candidate_embeddings =
+      try do
+        Vocabulary.embeddings_for(candidates)
+      rescue
+        _ -> []
+      end
+
+    target1 = GetScore.generate_target_embedding(base1, @ai_target_similarity)
+    target2 = GetScore.generate_target_embedding(base2, @ai_target_similarity)
+
+    top_half = div(@suggestions_count, 2)
+
     near1 =
-      safe_top_matches(base1, @ai_target_similarity, vocab, top_k: div(@suggestions_count, 2))
+      candidates
+      |> Enum.zip(candidate_embeddings)
+      |> Enum.map(fn {w, emb} ->
+        score = if emb, do: Nx.to_number(GetScore.cosine_similarity(target1, emb)), else: 0.0
+        {w, score}
+      end)
+      |> Enum.sort_by(fn {_w, score} -> score end, :desc)
+      |> Enum.take(top_half)
+      |> Enum.map(&elem(&1, 0))
 
     near2 =
-      safe_top_matches(base2, @ai_target_similarity, vocab, top_k: div(@suggestions_count, 2))
+      candidates
+      |> Enum.zip(candidate_embeddings)
+      |> Enum.map(fn {w, emb} ->
+        score = if emb, do: Nx.to_number(GetScore.cosine_similarity(target2, emb)), else: 0.0
+        {w, score}
+      end)
+      |> Enum.sort_by(fn {_w, score} -> score end, :desc)
+      |> Enum.take(top_half)
+      |> Enum.map(&elem(&1, 0))
 
     combined =
-      (Enum.map(near1, &elem(&1, 0)) ++ Enum.map(near2, &elem(&1, 0)))
+      (near1 ++ near2)
       |> Enum.uniq()
 
     need = max(@suggestions_count - length(combined), 0)
-    filler = vocab |> Enum.shuffle() |> Enum.take(need)
+    filler = candidates |> Enum.shuffle() |> Enum.take(need)
 
     combined
     |> Kernel.++(filler)

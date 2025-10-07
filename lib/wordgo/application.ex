@@ -20,6 +20,15 @@ defmodule Wordgo.Application do
        name: Wordgo.Embeddings,
        batch_size: 16,
        batch_timeout: 50},
+      # Precompute vocabulary embeddings in the background to reduce first-use latency
+      {Task,
+       fn ->
+         try do
+           Wordgo.WordToVec.Vocabulary.precompute_embeddings!()
+         rescue
+           _ -> :ok
+         end
+       end},
       # Start to serve requests, typically the last entry
       WordgoWeb.Endpoint
     ]

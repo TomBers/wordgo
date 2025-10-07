@@ -39,6 +39,7 @@ defmodule WordgoWeb.SimpleModeLive do
       |> assign(:game_over?, false)
       |> assign(:error_message, nil)
       |> assign(:form, form)
+      |> assign(:total_words_entered, 0)
 
     {:ok, socket}
   end
@@ -73,23 +74,36 @@ defmodule WordgoWeb.SimpleModeLive do
         true ->
           new_words = socket.assigns.words ++ [text]
           new_score = compute_score(new_words)
+          updated_total = (socket.assigns[:total_words_entered] || 0) + 1
 
-          {lives, game_over?} =
-            if new_score < socket.assigns.threshold do
-              new_lives = max(socket.assigns.lives - 1, 0)
-              {new_lives, new_lives == 0}
-            else
-              {socket.assigns.lives, false}
-            end
+          if new_score < socket.assigns.threshold do
+            new_lives = max(socket.assigns.lives - 1, 0)
+            seed2 = pick_seed_word()
+            fresh_words = [seed2]
+            fresh_score = compute_score(fresh_words)
+            game_over? = new_lives == 0
 
-          {:noreply,
-           socket
-           |> assign(:words, new_words)
-           |> assign(:score, new_score)
-           |> assign(:lives, lives)
-           |> assign(:game_over?, game_over?)
-           |> assign(:error_message, nil)
-           |> assign(:form, Phoenix.Component.to_form(%{"text" => ""}, as: :word))}
+            {:noreply,
+             socket
+             |> assign(:seed_word, seed2)
+             |> assign(:words, fresh_words)
+             |> assign(:score, fresh_score)
+             |> assign(:lives, new_lives)
+             |> assign(:game_over?, game_over?)
+             |> assign(:total_words_entered, updated_total)
+             |> assign(:error_message, nil)
+             |> assign(:form, Phoenix.Component.to_form(%{"text" => ""}, as: :word))}
+          else
+            {:noreply,
+             socket
+             |> assign(:words, new_words)
+             |> assign(:score, new_score)
+             |> assign(:lives, socket.assigns.lives)
+             |> assign(:game_over?, false)
+             |> assign(:total_words_entered, updated_total)
+             |> assign(:error_message, nil)
+             |> assign(:form, Phoenix.Component.to_form(%{"text" => ""}, as: :word))}
+          end
       end
     end
   end
@@ -105,7 +119,7 @@ defmodule WordgoWeb.SimpleModeLive do
      |> assign(:seed_word, seed)
      |> assign(:words, words)
      |> assign(:score, score)
-     |> assign(:lives, socket.assigns.max_lives)
+     |> assign(:lives, socket.assigns.lives)
      |> assign(:game_over?, false)
      |> assign(:error_message, nil)
      |> assign(:form, Phoenix.Component.to_form(%{"text" => ""}, as: :word))}
@@ -209,6 +223,9 @@ defmodule WordgoWeb.SimpleModeLive do
               <%= if @game_over? do %>
                 <div class="mt-3 p-2 rounded bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-sm text-red-800 dark:text-red-200">
                   Game Over.
+                  <div class="mt-1 text-xs text-gray-700 dark:text-gray-300">
+                    Total words entered: {@total_words_entered}
+                  </div>
                 </div>
               <% else %>
                 <div class="mt-1 flex items-center gap-1">

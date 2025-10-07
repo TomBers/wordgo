@@ -332,4 +332,70 @@ defmodule Wordgo.WordToVec.Vocabulary do
       verbs be have do say make go know think take see come want use find give tell work call try ask need feel seem leave put keep let begin help talk turn start show hear play move like live believe hold bring happen write provide sit stand lose pay meet include continue set learn change lead understand watch follow stop create speak read allow add spend grow open walk win offer remember love consider appear buy wait serve die send expect build stay fall cut reach kill remain suggest raise pass sell require report decide return explain hope develop carry break receive agree support hit produce eat drink sleep drive ride fly swim
     ]
   end
+
+  @doc """
+  Vectorized search for closest vocabulary words to a given target embedding.
+
+  Options:
+  - :top_k (default 1)
+  - :candidates – list of words to consider (defaults to entire vocabulary)
+  - :exclude_query (default false) – if true and :query_word provided, exclude it
+  - :query_word – optional original word to exclude when exclude_query is true
+  """
+  def top_matches_for_target_embedding(%Nx.Tensor{} = target, opts \\ []) do
+    ensure_table!()
+
+    top_k = Keyword.get(opts, :top_k, 1)
+    exclude_query? = Keyword.get(opts, :exclude_query, false)
+    query_word = normalize_word(Keyword.get(opts, :query_word, ""))
+
+    candidates =
+      opts[:candidates] ||
+        get_vocabulary()
+
+    candidates =
+      candidates
+      |> Enum.map(&normalize_word/1)
+      |> Enum.reject(&(&1 == ""))
+      |> then(fn list ->
+        if exclude_query?, do: Enum.reject(list, &(&1 == query_word)), else: list
+      end)
+
+    # Fetch candidate embeddings and vectorize cosine similarity
+    embeddings = embeddings_for(candidates)
+
+    # Stack to {n, d}
+    mat = Nx.stack(embeddings)
+
+    # Normalize rows and target, then compute row-wise dot products
+    mat_norm = normalize_rows(mat)
+    tgt_norm = normalize_vec(target)
+
+    scores =
+      mat_norm
+      |> Nx.multiply(tgt_norm)
+      |> Nx.sum(axes: [1])
+
+    scores_list = Nx.to_flat_list(scores)
+
+    candidates
+    |> Enum.zip(scores_list)
+    |> Enum.sort_by(fn {_w, s} -> s end, :desc)
+    |> Enum.take(top_k)
+  end
+
+  # Normalize each row vector in a 2-D tensor
+  defp normalize_rows(mat) do
+    norms = Nx.sqrt(Nx.sum(Nx.multiply(mat, mat), axes: [1]))
+    # Avoid division by zero
+    norms = Nx.max(norms, Nx.tensor(1.0e-12))
+    n = elem(Nx.shape(mat), 0)
+    Nx.divide(mat, Nx.reshape(norms, {n, 1}))
+  end
+
+  # Normalize a 1-D vector
+  defp normalize_vec(v) do
+    denom = Nx.sqrt(Nx.sum(Nx.multiply(v, v)))
+    Nx.divide(v, Nx.max(denom, Nx.tensor(1.0e-12)))
+  end
 end

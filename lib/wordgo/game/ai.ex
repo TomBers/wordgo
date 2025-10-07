@@ -312,11 +312,24 @@ defmodule Wordgo.Game.AI do
 
     base = Enum.random(base_candidates)
 
-    # Try to get top 5 matches for similarity, filter for uniqueness
-    candidates =
-      Vocabulary.top_matches_for_desired_similarity(base, target_similarity, top_k: 5)
-      |> Enum.map(fn {w, _sim} -> w end)
+    # Try to get top 5 matches for similarity using vectorized search, pre-filtering uniqueness
+    unique_vocab =
+      Vocabulary.get_vocabulary()
       |> Enum.reject(&(String.downcase(&1) in existing_words))
+
+    target = Wordgo.WordToVec.GetScore.generate_target_embedding(base, target_similarity)
+
+    matches =
+      Vocabulary.top_matches_for_target_embedding(target,
+        candidates: unique_vocab,
+        top_k: 5,
+        exclude_query: true,
+        query_word: base
+      )
+
+    candidates =
+      matches
+      |> Enum.map(fn {w, _sim} -> w end)
 
     # If no unique candidates, fallback to unique vocab
     word =

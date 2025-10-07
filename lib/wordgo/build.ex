@@ -32,6 +32,8 @@ defmodule Wordgo.Build do
     # Ensure HTTPS is available in the build environment
     _ = Application.ensure_all_started(:ssl)
     _ = Application.ensure_all_started(:inets)
+    # Ensure the dedicated httpc profile used by Bumblebee is started and trusted
+    start_httpc_bumblebee!()
 
     model_id = System.get_env("WORDGO_BUMBLEBEE_MODEL") || @default_model
 
@@ -53,6 +55,38 @@ defmodule Wordgo.Build do
     summarize_cache(cache_dir)
 
     IO.puts("[build] Bumblebee: cache populated successfully")
+    :ok
+  end
+
+  defp start_httpc_bumblebee! do
+    # Start the httpc manager with the :httpc_bumblebee profile if not already running
+    _ = Application.ensure_all_started(:inets)
+
+    case :inets.start(:httpc, profile: :httpc_bumblebee) do
+      {:error, {:already_started, _pid}} -> :ok
+      {:ok, _pid} -> :ok
+      other -> IO.puts("[build] Bumblebee: httpc profile start result=#{inspect(other)}")
+    end
+
+    # Provide CA certificates directly from Erlang's store to avoid OS CA dependency
+    cacerts = :public_key.cacerts_get()
+
+    :httpc.set_options(
+      [
+        ssl: [
+          verify: :verify_peer,
+          cacerts: cacerts,
+          customize_hostname_check: [
+            match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+          ],
+          server_name_indication: :enabled
+        ],
+        timeout: 30000,
+        connect_timeout: 30000
+      ],
+      :httpc_bumblebee
+    )
+
     :ok
   end
 

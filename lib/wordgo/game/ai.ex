@@ -112,24 +112,38 @@ defmodule Wordgo.Game.AI do
     target_similarity = get_target_similarity(ai_difficulty)
 
     # Get all words currently on the board (case-insensitive)
-    existing_words =
+    existing_set =
       board.pieces
       |> Enum.map(&String.downcase(&1.word))
+      |> MapSet.new()
 
     case ai_words do
       [] ->
         # First move: random vocabulary word, but ensure uniqueness
         vocab = Vocabulary.get_vocabulary()
-        unique_vocab = vocab |> Enum.reject(&(String.downcase(&1) in existing_words))
 
-        if unique_vocab == [] do
-          nil
-        else
-          Enum.random(unique_vocab)
-        end
+        # Try random sampling first to avoid iterating entire vocabulary
+        candidate =
+          1..50
+          |> Enum.find_value(fn _ ->
+            w = Enum.random(vocab)
+            if not MapSet.member?(existing_set, String.downcase(w)), do: w
+          end)
+
+        candidate ||
+          (
+            unique_vocab =
+              vocab |> Enum.reject(&MapSet.member?(existing_set, String.downcase(&1)))
+
+            if unique_vocab == [] do
+              nil
+            else
+              Enum.random(unique_vocab)
+            end
+          )
 
       _ ->
-        choose_strategic_word(board, {x, y}, ai_words, target_similarity, existing_words)
+        choose_strategic_word(board, {x, y}, ai_words, target_similarity, existing_set)
     end
   end
 
@@ -219,12 +233,26 @@ defmodule Wordgo.Game.AI do
          size,
          difficulty_params
        ) do
+    # Pre-calculate group coords for O(1) lookup
+    group_coords =
+      largest_group
+      |> Enum.map(&{&1.x, &1.y})
+      |> MapSet.new()
+
     largest_group
     |> Enum.flat_map(fn p -> get_neighbors({p.x, p.y}, size) end)
     |> Enum.filter(&MapSet.member?(empty_set, &1))
     |> Enum.uniq()
     |> Enum.map(fn coord ->
-      score_position(coord, largest_group, empty_set, ai_piece_coords, size, difficulty_params)
+      score_position(
+        coord,
+        largest_group,
+        group_coords,
+        empty_set,
+        ai_piece_coords,
+        size,
+        difficulty_params
+      )
     end)
     |> Enum.sort_by(
       fn {_c, score, block_adj, grow_adj} -> {score, block_adj, grow_adj} end,
@@ -232,13 +260,21 @@ defmodule Wordgo.Game.AI do
     )
   end
 
-  defp score_position(coord, largest_group, empty_set, ai_piece_coords, size, difficulty_params) do
-    block_adj = count_blocking_adjacency(coord, largest_group, size)
+  defp score_position(
+         coord,
+         largest_group,
+         group_coords,
+         empty_set,
+         ai_piece_coords,
+         size,
+         difficulty_params
+       ) do
+    block_adj = count_blocking_adjacency(coord, group_coords, size)
     grow_adj = count_growth_adjacency(coord, ai_piece_coords, size)
 
     # 2-step lookahead
     empty_after = MapSet.delete(empty_set, coord)
-    opp_next_best = calculate_opponent_next_best(largest_group, empty_after, size)
+    opp_next_best = calculate_opponent_next_best(largest_group, group_coords, empty_after, size)
     ai_future = calculate_ai_future_growth(coord, empty_after, size)
 
     %{block_weight: block_w, grow_weight: grow_w} = difficulty_params
@@ -252,27 +288,23 @@ defmodule Wordgo.Game.AI do
     {coord, final_score, block_adj, grow_adj}
   end
 
-  defp count_blocking_adjacency(coord, largest_group, size) do
+  defp count_blocking_adjacency(coord, group_coords, size) do
     get_neighbors(coord, size)
-    |> Enum.count(fn c ->
-      Enum.any?(largest_group, fn p -> {p.x, p.y} == c end)
-    end)
+    |> Enum.count(&MapSet.member?(group_coords, &1))
   end
 
   defp count_growth_adjacency(coord, ai_piece_coords, size) do
     get_neighbors(coord, size)
-    |> Enum.count(fn c -> MapSet.member?(ai_piece_coords, c) end)
+    |> Enum.count(&MapSet.member?(ai_piece_coords, &1))
   end
 
-  defp calculate_opponent_next_best(largest_group, empty_after, size) do
+  defp calculate_opponent_next_best(largest_group, group_coords, empty_after, size) do
     largest_group
     |> Enum.flat_map(fn p -> get_neighbors({p.x, p.y}, size) end)
     |> Enum.filter(&MapSet.member?(empty_after, &1))
     |> Enum.map(fn c2 ->
       get_neighbors(c2, size)
-      |> Enum.count(fn c3 ->
-        Enum.any?(largest_group, fn p -> {p.x, p.y} == c3 end)
-      end)
+      |> Enum.count(&MapSet.member?(group_coords, &1))
     end)
     |> Enum.max(fn -> 0 end)
   end
@@ -299,7 +331,7 @@ defmodule Wordgo.Game.AI do
     end
   end
 
-  defp choose_strategic_word(board, {x, y}, ai_words, target_similarity, existing_words) do
+  defp choose_strategic_word(board, {x, y}, ai_words, target_similarity, existing_set) do
     ai_groups = Game.get_player_groups(board, "AI")
 
     {nearest_group, _dist} = find_nearest_group(ai_groups, {x, y})
@@ -312,17 +344,13 @@ defmodule Wordgo.Game.AI do
 
     base = Enum.random(base_candidates)
 
-    # Try to get top 5 matches for similarity using vectorized search, pre-filtering uniqueness
-    unique_vocab =
-      Vocabulary.get_vocabulary()
-      |> Enum.reject(&(String.downcase(&1) in existing_words))
-
     target = Wordgo.WordToVec.GetScore.generate_target_embedding(base, target_similarity)
 
+    # Optimize: Do not filter vocabulary by candidates list (slow).
+    # Instead fetch more matches and filter locally.
     matches =
       Vocabulary.top_matches_for_target_embedding(target,
-        candidates: unique_vocab,
-        top_k: 5,
+        top_k: 50,
         exclude_query: true,
         query_word: base
       )
@@ -330,6 +358,8 @@ defmodule Wordgo.Game.AI do
     candidates =
       matches
       |> Enum.map(fn {w, _sim} -> w end)
+      |> Enum.reject(&MapSet.member?(existing_set, String.downcase(&1)))
+      |> Enum.take(5)
 
     # If no unique candidates, fallback to unique vocab
     word =
@@ -339,13 +369,12 @@ defmodule Wordgo.Game.AI do
 
         [] ->
           vocab = Vocabulary.get_vocabulary()
-          unique_vocab = vocab |> Enum.reject(&(String.downcase(&1) in existing_words))
 
-          if unique_vocab == [] do
-            nil
-          else
-            Enum.random(unique_vocab)
-          end
+          1..50
+          |> Enum.find_value(fn _ ->
+            w = Enum.random(vocab)
+            if not MapSet.member?(existing_set, String.downcase(w)), do: w
+          end)
       end
 
     word

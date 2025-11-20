@@ -16,7 +16,7 @@ defmodule Wordgo.WordToVec.Embeddings do
     opts = Application.get_env(:wordgo, :embeddings, [])
 
     model = Keyword.get(opts, :model, "BAAI/bge-small-en-v1.5")
-    batch_size = Keyword.get(opts, :batch_size, 16)
+    batch_size = Keyword.get(opts, :batch_size, 64)
     sequence_length = Keyword.get(opts, :sequence_length, 16)
     output_attribute = Keyword.get(opts, :output_attribute, :hidden_state)
     output_pool = Keyword.get(opts, :output_pool, :mean_pooling)

@@ -18,7 +18,7 @@ defmodule Wordgo.Application do
       {Nx.Serving,
        serving: Wordgo.WordToVec.Embeddings.serving(),
        name: Wordgo.Embeddings,
-       batch_size: 16,
+       batch_size: 64,
        batch_timeout: 50},
       # Precompute vocabulary embeddings in the background to reduce first-use latency
       {Task,

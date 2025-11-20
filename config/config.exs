@@ -67,7 +67,7 @@ config :phoenix, :json_library, Jason
 # Default embeddings configuration
 config :wordgo, :embeddings,
   model: "BAAI/bge-small-en-v1.5",
-  batch_size: 16,
+  batch_size: 64,
   sequence_length: 16,
   output_attribute: :hidden_state,
   output_pool: :mean_pooling

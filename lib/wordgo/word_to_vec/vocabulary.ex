@@ -93,6 +93,8 @@ defmodule Wordgo.WordToVec.Vocabulary do
       |> Enum.each(fn {word, emb} -> put_embedding!(word, emb) end)
     end)
 
+    build_and_cache_matrix!()
+
     :ok
   end
 
@@ -251,6 +253,23 @@ defmodule Wordgo.WordToVec.Vocabulary do
     ensure_table!()
     # Delete all entries where key matches {:emb, _}
     :ets.match_delete(@table, {{:emb, :_}, :_})
+    :ets.delete(@table, :vocab_matrix)
+    :ets.delete(@table, :vocab_list)
+    :ok
+  end
+
+  defp build_and_cache_matrix! do
+    vocab = get_vocabulary()
+    embeddings = embeddings_for(vocab)
+
+    if embeddings != [] do
+      mat = Nx.stack(embeddings)
+      mat_norm = normalize_rows(mat)
+
+      :ets.insert(@table, {:vocab_matrix, mat_norm})
+      :ets.insert(@table, {:vocab_list, vocab})
+    end
+
     :ok
   end
 
@@ -349,39 +368,74 @@ defmodule Wordgo.WordToVec.Vocabulary do
     exclude_query? = Keyword.get(opts, :exclude_query, false)
     query_word = normalize_word(Keyword.get(opts, :query_word, ""))
 
-    candidates =
-      opts[:candidates] ||
-        get_vocabulary()
+    # Try to use cached matrix if available
+    case {:ets.lookup(@table, :vocab_matrix), :ets.lookup(@table, :vocab_list)} do
+      {[{:vocab_matrix, mat_norm}], [{:vocab_list, vocab_list}]} ->
+        tgt_norm = normalize_vec(target)
 
-    candidates =
-      candidates
-      |> Enum.map(&normalize_word/1)
-      |> Enum.reject(&(&1 == ""))
-      |> then(fn list ->
-        if exclude_query?, do: Enum.reject(list, &(&1 == query_word)), else: list
-      end)
+        # Compute scores for ALL words in the vocabulary
+        scores =
+          mat_norm
+          |> Nx.multiply(tgt_norm)
+          |> Nx.sum(axes: [1])
 
-    # Fetch candidate embeddings and vectorize cosine similarity
-    embeddings = embeddings_for(candidates)
+        scores_list = Nx.to_flat_list(scores)
 
-    # Stack to {n, d}
-    mat = Nx.stack(embeddings)
+        # Determine the set of allowed candidates, if restricted
+        candidates_set =
+          if opts[:candidates] do
+            opts[:candidates]
+            |> Enum.map(&normalize_word/1)
+            |> MapSet.new()
+          else
+            nil
+          end
 
-    # Normalize rows and target, then compute row-wise dot products
-    mat_norm = normalize_rows(mat)
-    tgt_norm = normalize_vec(target)
+        vocab_list
+        |> Enum.zip(scores_list)
+        |> Enum.filter(fn {w, _s} ->
+          # Filter based on candidates list and exclude_query
+          keep = if candidates_set, do: MapSet.member?(candidates_set, w), else: true
+          keep and w != "" and (not exclude_query? or w != query_word)
+        end)
+        |> Enum.sort_by(fn {_w, s} -> s end, :desc)
+        |> Enum.take(top_k)
 
-    scores =
-      mat_norm
-      |> Nx.multiply(tgt_norm)
-      |> Nx.sum(axes: [1])
+      _ ->
+        # Fallback: no cached matrix, build ad-hoc
+        candidates =
+          opts[:candidates] ||
+            get_vocabulary()
 
-    scores_list = Nx.to_flat_list(scores)
+        candidates =
+          candidates
+          |> Enum.map(&normalize_word/1)
+          |> Enum.reject(&(&1 == ""))
+          |> then(fn list ->
+            if exclude_query?, do: Enum.reject(list, &(&1 == query_word)), else: list
+          end)
 
-    candidates
-    |> Enum.zip(scores_list)
-    |> Enum.sort_by(fn {_w, s} -> s end, :desc)
-    |> Enum.take(top_k)
+        if candidates == [] do
+          []
+        else
+          embeddings = embeddings_for(candidates)
+          mat = Nx.stack(embeddings)
+          mat_norm = normalize_rows(mat)
+          tgt_norm = normalize_vec(target)
+
+          scores =
+            mat_norm
+            |> Nx.multiply(tgt_norm)
+            |> Nx.sum(axes: [1])
+
+          scores_list = Nx.to_flat_list(scores)
+
+          candidates
+          |> Enum.zip(scores_list)
+          |> Enum.sort_by(fn {_w, s} -> s end, :desc)
+          |> Enum.take(top_k)
+        end
+    end
   end
 
   # Normalize each row vector in a 2-D tensor

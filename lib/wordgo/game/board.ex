@@ -120,7 +120,7 @@ defmodule Wordgo.Game.Board do
     group_size = length(group)
     words = Enum.map(group, & &1.word)
     embeddings = Vocabulary.embeddings_for(words)
-    group_size * GetScore.score_group_from_embeddings(embeddings)
+    group_size * GetScore.score_group_from_embeddings(embeddings, transform: :intuitive)
   end
 
   def score_group(group, %__MODULE__{} = board) do

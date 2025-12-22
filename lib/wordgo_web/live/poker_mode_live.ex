@@ -637,9 +637,7 @@ defmodule WordgoWeb.PokerModeLive do
 
   defp safe_similarity(a, b) do
     try do
-      cos = GetScore.run(a, b)
-      c = min(max(cos, -1.0), 1.0)
-      1.0 - :math.acos(c) / :math.pi()
+      GetScore.run(a, b, transform: :intuitive)
     rescue
       _ -> 0.0
     end

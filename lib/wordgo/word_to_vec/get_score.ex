@@ -8,7 +8,7 @@ defmodule Wordgo.WordToVec.GetScore do
 
   Options:
   - method: :centroid | :pairwise — choose the scoring method for groups (default: :centroid)
-  - transform: :angular | :none | {:gamma, g} | {:affine, {a, b}} — choose how raw cosine is post-processed (default: :angular)
+  - transform: :angular | :none | :intuitive | {:gamma, g} | {:affine, {a, b}} — choose how raw cosine is post-processed (default: :angular)
   """
 
   alias Nx.Serving
@@ -23,6 +23,7 @@ defmodule Wordgo.WordToVec.GetScore do
   # Supported transforms:
   #   :none       -> return raw cosine
   #   :angular    -> 1 - arccos(cos)/pi (spreads high-cosine region)
+  #   :intuitive  -> highlights strong connections, suppresses weak ones
   #   {:gamma, g} -> gamma curve on [0,1] region to pull apart high values
   #   {:affine, {a,b}} -> linear transform a*cos + b
   defp transform_similarity(cos, opts \\ []) when is_number(cos) do
@@ -33,6 +34,11 @@ defmodule Wordgo.WordToVec.GetScore do
       :angular ->
         c = min(max(cos, -1.0), 1.0)
         1.0 - :math.acos(c) / :math.pi()
+
+      :intuitive ->
+        # Empirically tuned for "feels right" similarity
+        s = max(cos, 0.0)
+        :math.pow(s, 2.5)
 
       {:gamma, g} when is_number(g) and g > 0 ->
         # Clamp to [0,1] before gamma so negatives don't explode
@@ -176,7 +182,7 @@ defmodule Wordgo.WordToVec.GetScore do
   Calculates the semantic similarity between two words using embeddings.
   Returns a float value between 0 and 1, where higher values indicate greater similarity.
   """
-  def run(word1, word2) do
+  def run(word1, word2, opts \\ []) do
     # Get embeddings for both words
     embeddings = get_embedding([word1, word2])
 
@@ -185,7 +191,7 @@ defmodule Wordgo.WordToVec.GetScore do
 
     # Convert to float, apply default transform (angular -> 0..1), and return
     score = Nx.to_number(similarity)
-    transform_similarity(score)
+    transform_similarity(score, opts)
   rescue
     e ->
       Logger.error("Error calculating similarity: #{inspect(e)}")

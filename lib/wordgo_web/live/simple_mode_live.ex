@@ -3,7 +3,7 @@ defmodule WordgoWeb.SimpleModeLive do
 
   alias Wordgo.WordToVec.{GetScore, Vocabulary}
 
-  @default_threshold 0.75
+  @default_threshold 0.30
   @default_lives 2
 
   # === Lifecycle ===
@@ -22,8 +22,8 @@ defmodule WordgoWeb.SimpleModeLive do
 
     seed = pick_seed_word()
 
-    words = [seed]
-    score = compute_score(words)
+    words = [%{text: seed, score: 1.0}]
+    score = compute_score([seed])
 
     form = Phoenix.Component.to_form(%{"text" => ""}, as: :word)
 
@@ -40,6 +40,7 @@ defmodule WordgoWeb.SimpleModeLive do
       |> assign(:error_message, nil)
       |> assign(:form, form)
       |> assign(:total_words_entered, 0)
+      |> assign(:failed_rounds, [])
 
     {:ok, socket}
   end
@@ -72,16 +73,27 @@ defmodule WordgoWeb.SimpleModeLive do
           {:noreply, put_error(socket, "That word is already in the list")}
 
         true ->
-          new_words = socket.assigns.words ++ [text]
-          new_score = compute_score(new_words)
+          word_score = GetScore.run(text, socket.assigns.seed_word, transform: :intuitive)
+          new_word_entry = %{text: text, score: word_score}
+          new_words = socket.assigns.words ++ [new_word_entry]
+
+          word_list = Enum.map(new_words, & &1.text)
+          new_score = compute_score(word_list)
+
           updated_total = (socket.assigns[:total_words_entered] || 0) + 1
 
           if new_score < socket.assigns.threshold do
             new_lives = max(socket.assigns.lives - 1, 0)
             seed2 = pick_seed_word()
-            fresh_words = [seed2]
-            fresh_score = compute_score(fresh_words)
+            fresh_words = [%{text: seed2, score: 1.0}]
+            fresh_score = compute_score([seed2])
             game_over? = new_lives == 0
+
+            failed_round = %{
+              seed: socket.assigns.seed_word,
+              words: new_words,
+              final_score: new_score
+            }
 
             {:noreply,
              socket
@@ -91,6 +103,7 @@ defmodule WordgoWeb.SimpleModeLive do
              |> assign(:lives, new_lives)
              |> assign(:game_over?, game_over?)
              |> assign(:total_words_entered, updated_total)
+             |> assign(:failed_rounds, [failed_round | socket.assigns.failed_rounds])
              |> assign(:error_message, nil)
              |> assign(:form, Phoenix.Component.to_form(%{"text" => ""}, as: :word))}
           else
@@ -111,16 +124,18 @@ defmodule WordgoWeb.SimpleModeLive do
   @impl true
   def handle_event("reset", _params, socket) do
     seed = pick_seed_word()
-    words = [seed]
-    score = compute_score(words)
+    words = [%{text: seed, score: 1.0}]
+    score = compute_score([seed])
 
     {:noreply,
      socket
      |> assign(:seed_word, seed)
      |> assign(:words, words)
      |> assign(:score, score)
-     |> assign(:lives, socket.assigns.lives)
+     |> assign(:lives, socket.assigns.max_lives)
      |> assign(:game_over?, false)
+     |> assign(:total_words_entered, 0)
+     |> assign(:failed_rounds, [])
      |> assign(:error_message, nil)
      |> assign(:form, Phoenix.Component.to_form(%{"text" => ""}, as: :word))}
   end
@@ -155,8 +170,11 @@ defmodule WordgoWeb.SimpleModeLive do
                 <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Your words</p>
                 <div class="flex flex-wrap gap-2">
                   <%= for w <- @words do %>
-                    <span class="px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-900 dark:text-blue-100 text-sm">
-                      {w}
+                    <span
+                      class="px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-900 dark:text-blue-100 text-sm"
+                      title={"Similarity to seed: #{format_float(w.score)}"}
+                    >
+                      {w.text} <span class="opacity-60 text-xs ml-1">{format_float(w.score)}</span>
                     </span>
                   <% end %>
                 </div>
@@ -251,6 +269,32 @@ defmodule WordgoWeb.SimpleModeLive do
                 <li>Aim to keep the score above the threshold.</li>
               </ul>
             </div>
+
+            <%= if @failed_rounds != [] do %>
+              <div class="rounded-lg border p-4 bg-white dark:bg-gray-800">
+                <p class="text-sm font-semibold mb-2">Past Rounds</p>
+                <div class="space-y-3">
+                  <%= for round <- @failed_rounds do %>
+                    <div class="text-xs">
+                      <div class="flex justify-between mb-1">
+                        <span class="font-medium">Seed: {round.seed}</span>
+                        <span class="text-red-600 font-bold">{format_float(round.final_score)}</span>
+                      </div>
+                      <div class="flex flex-wrap gap-1">
+                        <%= for w <- round.words do %>
+                          <span
+                            class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"
+                            title={w.text}
+                          >
+                            {w.text}
+                          </span>
+                        <% end %>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
           </div>
         </div>
       </div>
@@ -271,7 +315,7 @@ defmodule WordgoWeb.SimpleModeLive do
 
   defp word_exists?(words, new_word) do
     down = String.downcase(new_word)
-    Enum.any?(words, fn w -> String.downcase(w) == down end)
+    Enum.any?(words, fn w -> String.downcase(w.text) == down end)
   end
 
   defp contains_space?(text) do
@@ -302,7 +346,7 @@ defmodule WordgoWeb.SimpleModeLive do
 
       list ->
         try do
-          GetScore.score_group_with_opts(list, transform: :angular)
+          GetScore.score_group_with_opts(list, transform: :intuitive)
         rescue
           _ -> 0.0
         end

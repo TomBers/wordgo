@@ -645,7 +645,7 @@ defmodule WordgoWeb.PokerModeLive do
 
   defp compute_hand_score(words) do
     try do
-      GetScore.score_group_with_opts(words, transform: :angular)
+      GetScore.score_group_with_opts(words, transform: :intuitive)
     rescue
       _ -> 0.0
     end
